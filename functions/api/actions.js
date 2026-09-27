@@ -101,7 +101,8 @@ async function persistRun(db,run){
   if(!db)return;
   await ensureRunSchema(db);
   await db.prepare(`INSERT OR REPLACE INTO action_runs
-undefined`)
+    (id,owner_id,run_number,name,event,head_branch,status,conclusion,source,runner,yuml,yuml_plan,jobs,artifacts,created_at,updated_at)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .bind(run.id,run.owner_id,run.run_number,run.name,run.event,run.head_branch,run.status,run.conclusion,run.source,run.runner,run.yuml,JSON.stringify(run.yuml_plan||{}),JSON.stringify(run.jobs||[]),JSON.stringify(run.artifacts||[]),run.created_at,run.updated_at)
     .run();
 }
