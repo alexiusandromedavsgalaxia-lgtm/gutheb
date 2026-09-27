@@ -191,11 +191,11 @@ function App(){
         {page==="new"&&<NewRepo form={newRepo} setForm={setNewRepo} onSubmit={createRepo}/>}
         {page==="issues"&&<Issues issues={issues} user={user} title={issueTitle} setTitle={setIssueTitle} body={issueBody} setBody={setIssueBody} onSubmit={createIssue}/>}
         {page==="pulls"&&<Pulls prs={prs} setPRs={setPRs} user={user}/>}
-        {page==="actions"&&<Actions/>}
+        {page==="actions"&&<Actions repo={selectedRepo}/>}
         {page==="projects"&&<Projects/>}
         {page==="discussions"&&<Discussions/>}
         {page==="codespaces"&&<Codespaces/>}
-        {page==="marketplace"&&<Marketplace/>}
+        {page==="marketplace"&&<Marketplace repos={repos} selectedRepo={selectedRepo} saveLocalRepo={saveLocalRepo}/>}
         {page==="explore"&&<Explore/>}
         {page==="notifications"&&<Notifications/>}
         {page==="profile"&&<Profile user={user} profile={profile} setProfile={setProfile} save={saveProfile} repos={repos.filter(r=>!r.owner||r.owner===user.name)} pinned={pinned} togglePin={togglePin}/>}
@@ -239,7 +239,7 @@ function Issues({issues,title,setTitle,body,setBody,onSubmit}){return <Page titl
 
 function Pulls({prs,setPRs,user}){return <Page title="Pull requests" subtitle="Review code changes before they land."><Panel title={prs.length+" open pull requests"} action={<button onClick={()=>setPRs(x=>[{id:Date.now(),title:"New pull request",state:"open",author:user.name,branch:"feature/new"},...x])}>New pull request</button>}>{prs.map(p=><div className="issue" key={p.id}><span className="open">↗</span><div><strong>{p.title}</strong><small>#{p.id} · {p.branch} · opened by {p.author}</small></div></div>)}</Panel></Page>}
 
-function Actions(){
+function Actions({repo}){
   const [tab,setTab]=useState("runs"),[runs,setRuns]=useState([]),[jobs,setJobs]=useState([]),[artifacts,setArtifacts]=useState([]),[selectedRun,setSelectedRun]=useState(null),[logs,setLogs]=useState(""),[loading,setLoading]=useState(true),[running,setRunning]=useState(false),[error,setError]=useState(""),[yuml,setYuml]=useState("");
   async function loadRuns(){
     setLoading(true);setError("");
@@ -247,7 +247,11 @@ function Actions(){
     catch(e){setError(e.message)}finally{setLoading(false)}
   }
   async function loadDefault(){
-    try{const r=await fetch("/api/actions?op=default"),d=await r.json();if(r.ok)setYuml(d.yuml||"")}catch{}
+    try{
+      const installed=Object.entries(repo?.files||{}).find(([path])=>path.startsWith(".gh/yuml/")&&path.endsWith(".yuml"));
+      if(installed){setYuml(installed[1]||"");return;}
+      const r=await fetch("/api/actions?op=default"),d=await r.json();if(r.ok)setYuml(d.yuml||"")
+    }catch{}
   }
   async function validate(){
     setError("");
@@ -290,7 +294,7 @@ function Actions(){
 function Projects(){return <Page title="Projects" subtitle="Track work with tables, boards, and roadmaps."><div className="board"><div>Todo</div><div>In progress</div><div>Done</div><article>Plan next release</article><article>Build issue workflow</article><article>Ship first version</article></div></Page>}
 function Discussions(){return <Page title="Discussions" subtitle="Community conversations and long-form collaboration."><Panel title="Recent discussions"><Activity text="Welcome to the community"/><Activity text="Share what you are building"/><Activity text="Feature ideas"/></Panel></Page>}
 function Codespaces(){return <Page title="Codespaces" subtitle="Cloud development environments for your repositories."><Panel title="Your codespaces"><div className="empty">No codespaces yet.<br/><button className="primary">Create a codespace</button></div></Panel></Page>}
-function Marketplace(){
+function Marketplace({repos,selectedRepo,saveLocalRepo}){
   const [tab,setTab]=useState("actions");
   const [q,setQ]=useState("");
   const [installed,setInstalled]=useState(()=>JSON.parse(localStorage.getItem("gutheb-market-installed")||"[]"));
@@ -314,7 +318,21 @@ function Marketplace(){
     try{const r=await fetch("/api/marketplace",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const d=await r.json();if(!r.ok)throw new Error(d.error||"Could not publish Action");setPublished(x=>[d.action,...x]);setForm({name:"",version:"1.0.0",description:"",definition:""});setPublishing(false);setTab("actions");flash("Action published to GutHeb Marketplace");}
     catch(e){setError(e.message)}finally{setSaving(false)}
   }
-  function install(item){if(installed.includes(item.id))return flash("Action already installed");const next=[...installed,item.id];setInstalled(next);localStorage.setItem("gutheb-market-installed",JSON.stringify(next));flash(item.name+" installed");}
+  function install(item){
+    if(!selectedRepo)return setError("Open a repository first. Marketplace installs Actions into that repository's .gh/yuml/ folder.");
+    if(selectedRepo.owner!==user.name)return setError("Only the repository owner can install an Action into this repository.");
+    const path=".gh/yuml/"+item.slug+".yuml";
+    const next={...selectedRepo,files:{...(selectedRepo.files||{})},folders:[...(selectedRepo.folders||[])]};
+    if(next.files[path]!==undefined)return flash(item.name+" is already installed in this repository");
+    next.files[path]=item.definition;
+    if(!next.folders.includes(".gh"))next.folders.push(".gh");
+    if(!next.folders.includes(".gh/yuml"))next.folders.push(".gh/yuml");
+    saveLocalRepo(next);
+    const nextInstalled=[...installed,item.id];
+    setInstalled(nextInstalled);
+    localStorage.setItem("gutheb-market-installed",JSON.stringify(nextInstalled));
+    flash(item.name+" installed in .gh/yuml");
+  }
   const filtered=published.filter(x=>(x.name+" "+x.description+" "+x.author_name).toLowerCase().includes(q.toLowerCase()));
 
   if(publishing)return <Page title="Publish an Action" subtitle="Create a native GutHeb Action with your own definition and structure.">
@@ -329,7 +347,7 @@ function Marketplace(){
   </Page>;
 
   return <Page title="Marketplace" subtitle="Discover and publish native GutHeb Actions.">
-    <div className="marketHero"><div><span className="marketEyebrow">GUTHEB MARKETPLACE</span><h2>Your Action catalog</h2><p>Only Actions that people actually publish appear here.</p></div><button className="primary" onClick={()=>{setPublishing(true);setError("")}}>＋ Publish an Action</button></div>
+    <div className="marketHero"><div><span className="marketEyebrow">GUTHEB MARKETPLACE</span><h2>Your Action catalog</h2><p>Installed Actions are copied into the selected repository under .gh/yuml/.</p></div><button className="primary" onClick={()=>{setPublishing(true);setError("")}}>＋ Publish an Action</button></div>
     <div className="marketTabs"><button className={tab==="actions"?"sel":""} onClick={()=>setTab("actions")}>Actions</button><button className={tab==="installed"?"sel":""} onClick={()=>setTab("installed")}>Installed</button></div>
     {tab==="actions"&&<div><div className="marketSearch"><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search published Actions…"/></div>{error&&<div className="actionError">{error}</div>}
       {filtered.length?<div className="marketGrid">{filtered.map(item=><article className="marketActionCard" key={item.id}><div className="marketActionHead"><div><h3>{item.name}</h3><small>{item.author_name} · v{item.version}</small></div><button onClick={()=>install(item)}>{installed.includes(item.id)?"Installed":"Install"}</button></div><p>{item.description}</p><code>{item.slug}</code></article>)}</div>:
