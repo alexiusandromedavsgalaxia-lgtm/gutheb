@@ -240,20 +240,51 @@ function Issues({issues,title,setTitle,body,setBody,onSubmit}){return <Page titl
 function Pulls({prs,setPRs,user}){return <Page title="Pull requests" subtitle="Review code changes before they land."><Panel title={prs.length+" open pull requests"} action={<button onClick={()=>setPRs(x=>[{id:Date.now(),title:"New pull request",state:"open",author:user.name,branch:"feature/new"},...x])}>New pull request</button>}>{prs.map(p=><div className="issue" key={p.id}><span className="open">↗</span><div><strong>{p.title}</strong><small>#{p.id} · {p.branch} · opened by {p.author}</small></div></div>)}</Panel></Page>}
 
 function Actions(){
-  const [tab,setTab]=useState("runs"),[runs,setRuns]=useState([]),[jobs,setJobs]=useState([]),[artifacts,setArtifacts]=useState([]),[selectedRun,setSelectedRun]=useState(null),[logs,setLogs]=useState(""),[loading,setLoading]=useState(true),[dispatching,setDispatching]=useState(false),[error,setError]=useState("");
-  async function loadRuns(){setLoading(true);setError("");try{const r=await fetch("/api/actions?op=runs&limit=30",{credentials:"include"}),d=await r.json();if(!r.ok)throw new Error(d.error||"Could not load workflow runs");setRuns(d.runs||[])}catch(e){setError(e.message)}finally{setLoading(false)}}
-  async function loadRun(run){setSelectedRun(run);setTab("jobs");setError("");try{const [j,a]=await Promise.all([fetch("/api/actions?op=jobs&run_id="+encodeURIComponent(run.id),{credentials:"include"}),fetch("/api/actions?op=artifacts&run_id="+encodeURIComponent(run.id),{credentials:"include"})]);const jd=await j.json(),ad=await a.json();if(!j.ok)throw new Error(jd.error||"Could not load jobs");setJobs(jd.jobs||[]);setArtifacts(ad.artifacts||[])}catch(e){setError(e.message)}}
-  async function loadLogs(jobId){setError("");try{const r=await fetch("/api/actions?op=logs&job_id="+encodeURIComponent(jobId),{credentials:"include"}),d=await r.json();if(!r.ok)throw new Error(d.error||"Could not load logs");setLogs(d.logs||"");setTab("logs")}catch(e){setError(e.message)}}
-  async function dispatch(){setDispatching(true);setError("");try{const r=await fetch("/api/actions",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({workflow:"gutheb-ci.yml",ref:"main"})}),d=await r.json();if(!r.ok)throw new Error(d.error||"Could not start workflow");flash("Workflow dispatched to GitHub Actions");setTimeout(loadRuns,1500)}catch(e){setError(e.message)}finally{setDispatching(false)}}
-  useEffect(()=>{loadRuns();const id=setInterval(loadRuns,10000);return()=>clearInterval(id)},[]);
-  return <Page title="Actions" subtitle="Real GitHub Actions runs for GutHeb, powered by GitHub's runners." action={<div className="actionsToolbar"><button onClick={loadRuns}>↻ Refresh</button><button className="primary" onClick={dispatch} disabled={dispatching}>{dispatching?"Starting…":"▶ Run workflow"}</button></div>}>
+  const [tab,setTab]=useState("runs"),[runs,setRuns]=useState([]),[jobs,setJobs]=useState([]),[artifacts,setArtifacts]=useState([]),[selectedRun,setSelectedRun]=useState(null),[logs,setLogs]=useState(""),[loading,setLoading]=useState(true),[running,setRunning]=useState(false),[error,setError]=useState(""),[yuml,setYuml]=useState("");
+  async function loadRuns(){
+    setLoading(true);setError("");
+    try{const r=await fetch("/api/actions?op=runs",{credentials:"include"}),d=await r.json();if(!r.ok)throw new Error(d.error||"Could not load GutHeb Actions");setRuns(d.runs||[])}
+    catch(e){setError(e.message)}finally{setLoading(false)}
+  }
+  async function loadDefault(){
+    try{const r=await fetch("/api/actions?op=default"),d=await r.json();if(r.ok)setYuml(d.yuml||"")}catch{}
+  }
+  async function validate(){
+    setError("");
+    try{const r=await fetch("/api/actions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"validate",yuml})}),d=await r.json();if(!r.ok)throw new Error(d.error||"Invalid YUML");flash("YUML válido ✓")}
+    catch(e){setError(e.message)}
+  }
+  async function dispatch(){
+    setRunning(true);setError("");
+    try{
+      const r=await fetch("/api/actions",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({action:"dispatch",yuml,workflow:"GutHeb YUML",ref:"main"})}),d=await r.json();
+      if(!r.ok)throw new Error(d.error||"Could not start action");
+      flash("GutHeb Action enqueued");setSelectedRun(d.run);setTab("jobs");await loadRuns();
+    }catch(e){setError(e.message)}finally{setRunning(false)}
+  }
+  async function loadRun(run){
+    setSelectedRun(run);setTab("jobs");setError("");
+    try{const [j,a]=await Promise.all([fetch("/api/actions?op=jobs&run_id="+encodeURIComponent(run.id)),fetch("/api/actions?op=artifacts&run_id="+encodeURIComponent(run.id))]);const jd=await j.json(),ad=await a.json();if(!j.ok)throw new Error(jd.error||"Could not load jobs");setJobs(jd.jobs||[]);setArtifacts(ad.artifacts||[])}
+    catch(e){setError(e.message)}
+  }
+  async function loadLogs(jobId){
+    try{const r=await fetch("/api/actions?op=logs&job_id="+encodeURIComponent(jobId)),d=await r.json();if(!r.ok)throw new Error(d.error||"Could not load logs");setLogs(d.logs||"");setTab("logs")}catch(e){setError(e.message)}
+  }
+  useEffect(()=>{loadDefault();loadRuns();const id=setInterval(loadRuns,5000);return()=>clearInterval(id)},[]);
+  return <Page title="GutHeb Actions" subtitle="Automatizaciones nativas de GutHeb ejecutadas desde YUML." action={<div className="actionsToolbar"><button onClick={loadRuns}>↻ Refresh</button><button className="primary" onClick={dispatch} disabled={running}>{running?"Enqueuing…":"▶ Run YUML"}</button></div>}>
+    <Panel title="YUML workflow" action={<div className="actionsToolbar"><button onClick={validate}>✓ Validate</button><button onClick={loadDefault}>Reset</button></div>}>
+      <div className="yumlEditor">
+        <div className="yumlBar"><span>gutheb.yuml</span><span>YUML · GutHeb native</span></div>
+        <textarea value={yuml} onChange={e=>setYuml(e.target.value)} spellCheck={false} aria-label="YUML workflow editor"/>
+      </div>
+    </Panel>
     <div className="actionTabs">{["runs","jobs","logs","artifacts"].map(x=><button className={tab===x?"sel":""} onClick={()=>setTab(x)} key={x}>{x[0].toUpperCase()+x.slice(1)}</button>)}</div>
     {error&&<div className="actionError">{error}</div>}
-    {tab==="runs"&&<Panel title="Workflow runs">{loading?<div className="empty">Loading real GitHub Actions runs…</div>:runs.length?runs.map(r=><button className="realRunRow" key={r.id} onClick={()=>loadRun(r)}><span className={"runDot "+(r.conclusion||r.status)}/><div><b>{r.name||r.workflow_name}</b><small>#{r.run_number} · {r.event} · {r.head_branch||"main"} · {String(r.head_sha||"").slice(0,7)}</small></div><strong>{r.conclusion||r.status}</strong><span>{r.actor?.login||""}</span></button>):<div className="empty">No GitHub Actions runs yet.</div>}</Panel>}
-    {tab==="jobs"&&<Panel title={selectedRun?"Jobs for #"+selectedRun.run_number:"Jobs"}>{selectedRun?jobs.length?jobs.map(j=><div className="resourceRow" key={j.id}><div><b>{j.name}</b><small>{j.runner_name||j.runner_os||"GitHub-hosted runner"} · {j.started_at?new Date(j.started_at).toLocaleString():""}</small></div><span className={"statusPill "+(j.conclusion||j.status)}>{j.conclusion||j.status}</span><button onClick={()=>loadLogs(j.id)}>Logs</button></div>):<div className="empty">Loading jobs…</div>:<div className="empty">Select a workflow run first.</div>}</Panel>}
-    {tab==="logs"&&<Panel title="Job logs" action={<button onClick={()=>setTab("jobs")}>← Jobs</button>}>{logs?<pre className="actionLogs">{logs}</pre>:<div className="empty">Select a job and open its logs.</div>}</Panel>}
-    {tab==="artifacts"&&<Panel title="Artifacts">{selectedRun?artifacts.length?artifacts.map(a=><div className="resourceRow" key={a.id}><div><b>▣ {a.name}</b><small>{a.size_in_bytes} bytes · expires {a.expires_at?new Date(a.expires_at).toLocaleDateString():"never"}</small></div><a href={a.archive_download_url} target="_blank" rel="noreferrer">Download</a></div>):<div className="empty">No artifacts for this run.</div>:<div className="empty">Select a run first.</div>}</Panel>}
-    <div className="actionsRealNotice">Runs, jobs, logs and artifacts are read from the real GitHub Actions API. Execution happens on GitHub-hosted runners.</div>
+    {tab==="runs"&&<Panel title="GutHeb runs">{loading?<div className="empty">Loading GutHeb runs…</div>:runs.length?runs.map(r=><button className="realRunRow" key={r.id} onClick={()=>loadRun(r)}><span className={"runDot "+(r.conclusion||r.status)}/><div><b>{r.name}</b><small>#{r.run_number} · {r.event} · {r.head_branch||"main"} · {r.runner||"linux"}</small></div><strong>{r.conclusion||r.status}</strong><span>GutHeb</span></button>):<div className="empty">No GutHeb runs yet.</div>}</Panel>}
+    {tab==="jobs"&&<Panel title={selectedRun?"Jobs for #"+selectedRun.run_number:"Jobs"}>{selectedRun?jobs.length?jobs.map(j=><div className="resourceRow" key={j.id}><div><b>{j.name}</b><small>{j.runner_name||"GutHeb Runner"} · {j.runner_os||"linux"}</small></div><span className={"statusPill "+(j.conclusion||j.status)}>{j.conclusion||j.status}</span><button onClick={()=>loadLogs(j.id)}>Logs</button></div>):<div className="empty">No jobs yet.</div>:<div className="empty">Select a GutHeb run first.</div>}</Panel>}
+    {tab==="logs"&&<Panel title="Job logs" action={<button onClick={()=>setTab("jobs")}>← Jobs</button>}>{logs?<pre className="actionLogs">{logs}</pre>:<div className="empty">Select a GutHeb job and open its logs.</div>}</Panel>}
+    {tab==="artifacts"&&<Panel title="Artifacts">{selectedRun?artifacts.length?artifacts.map(a=><div className="resourceRow" key={a.id}><div><b>▣ {a.name}</b><small>{a.size_in_bytes||0} bytes</small></div></div>):<div className="empty">No artifacts for this run.</div>:<div className="empty">Select a run first.</div>}</Panel>}
+    <div className="actionsRealNotice">GutHeb Actions · YUML · GutHeb Runner. No GitHub Actions API is used by this workspace.</div>
   </Page>
 }
 function Projects(){return <Page title="Projects" subtitle="Track work with tables, boards, and roadmaps."><div className="board"><div>Todo</div><div>In progress</div><div>Done</div><article>Plan next release</article><article>Build issue workflow</article><article>Ship first version</article></div></Page>}
