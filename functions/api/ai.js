@@ -1,5 +1,14 @@
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"content-type","Content-Type":"application/json","Cache-Control":"no-store"}});
 const safePath=p=>String(p||"").trim().replace(/^\/+|^\.\.\//g,"");
+async function currentUser(request,env){
+  const users=env.USERS_DB;
+  if(!users)return null;
+  const raw=request.headers.get("Cookie")||"",m=raw.match(/(?:^|; )gutheb_session=([^;]+)/);
+  if(!m)return null;
+  const tokenHash=[...new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(m[1])))].map(x=>x.toString(16).padStart(2,"0")).join("");
+  return users.prepare("SELECT u.id FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(tokenHash,new Date().toISOString()).first();
+}
+
 function parseModel(raw){
   const text=String(raw||"").trim().replace(/^\`\`\`(?:json)?\s*/i,"").replace(/\s*\`\`\`$/,"");
   try{return JSON.parse(text)}catch{
