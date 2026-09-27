@@ -70,15 +70,11 @@ function App(){
     if(!importForm.url.trim())return flash("GitHub repository URL is required");
     setImporting(true);
     try{
-      const res=await fetch("/api/github-import",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:importForm.url.trim(),branch:importForm.branch.trim()})});
+      const res=await fetch("/api/github-import",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:importForm.url.trim(),branch:importForm.branch.trim(),targetName:importForm.name.trim(),username:user.name})});
       const d=await res.json();if(!res.ok)throw new Error(d.error||"GitHub import failed");
-      const source=d.repository||{};
-      const name=(importForm.name.trim()||source.name||"imported-repository").replace(/^\/+|\/+$/g,"");
-      if(!/^[A-Za-z0-9._-]+$/.test(name))throw new Error("Repository name can only contain letters, numbers, dots, underscores and hyphens.");
-      const r={owner:user.name,name,visibility:"Public",language:source.language||"",stars:source.stars||0,forks:source.forks||0,updated:"just now",description:source.description||"",license:source.license||"MIT",files:source.files||{},folders:source.folders||[],source:"github",sourceUrl:source.sourceUrl||importForm.url.trim(),defaultBranch:source.defaultBranch||"main",currentBranch:source.defaultBranch||"main"};
-      const save=await fetch("/api/account",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"repo",repo:r})});
-      const sd=await save.json();if(!save.ok)throw new Error(sd.error||"Could not save imported repository");
-      const saved={...r,id:sd.id};setRepoBranches(x=>({...x,[user.name+"/"+name]:[r.currentBranch||"main"]}));setRepos(x=>[saved,...x]);setSelectedRepo(saved);setImportOpen(false);setImportForm({url:"",branch:"",name:""});flash("GitHub repository imported into GutHeb");go("repos");
+      const source=d.repository||{};const name=source.name||importForm.name.trim()||"imported-repository";
+      const r={owner:user.name,name,visibility:"Public",language:source.language||"",stars:source.stars||0,forks:source.forks||0,updated:"just now",description:source.description||"",license:source.license||"MIT",files:{},folders:[],source:"github",sourceUrl:source.sourceUrl||importForm.url.trim(),defaultBranch:source.defaultBranch||"main",currentBranch:source.defaultBranch||"main",id:d.id};
+      setRepoBranches(x=>({...x,[user.name+"/"+name]:[r.currentBranch||"main"]}));setRepos(x=>[r,...x]);setSelectedRepo(r);setImportOpen(false);setImportForm({url:"",branch:"",name:""});flash("GitHub repository imported into GutHeb");go("repos");
     }catch(err){flash(err.message)}finally{setImporting(false)}
   }
   async function createRepo(e){
