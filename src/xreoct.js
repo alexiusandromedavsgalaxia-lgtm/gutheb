@@ -6,7 +6,7 @@ const TOKEN_RULES = [
   [/^(component|screen|element|const|if|return|import|export|default|use|action|true|false)\b/, "keyword"],
   [/^"(?:[^"\\]|\\.)*"/, "string"],
   [/^#[0-9a-fA-F]{6,8}\b/, "color"],
-  /^\d+(?:\.\d+)?/.source
+  [/^\d+(?:\.\d+)?/, "number"]
 ];
 
 export function tokenizeXreoct(line) {
