@@ -459,3 +459,107 @@ textarea{min-height:110px;resize:vertical}
 .marketplaceV2 .marketPublisher{border-color:#29384c;background:linear-gradient(145deg,#101925,#0b1119);border-radius:18px}
 @media(max-width:800px){.marketplaceV2 .marketGrid{grid-template-columns:1fr}.marketplaceV2 .marketHero{padding:24px}.marketplaceV2 .marketMetaGrid{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.marketplaceV2 .marketMetaGrid{grid-template-columns:1fr}.marketplaceV2 .marketHero h2{font-size:26px}}
+
+/* GitHub-style repository page */
+.repoAppbody{background:#0d1117}
+.repoAppbody .main{background:#0d1117}
+.repoPage{max-width:1280px;padding:24px 32px 72px;color:#f0f6fc}
+.repoTop{padding:20px 0 16px;border-bottom:0;align-items:flex-start}
+.repoIdentity{padding:0;border:0}
+.repoCrumb{font-size:20px;letter-spacing:0;gap:5px}
+.repoCrumb button{color:#58a6ff;font-weight:400}
+.repoCrumb strong{font-weight:600}
+.repoIdentity p{font-size:13px;margin:8px 0 0;color:#8b949e}
+.visibility{font-size:12px;padding:2px 7px;border-color:#30363d;color:#8b949e}
+.visibility.private{color:#f0b35b;border-color:#6e5a37}
+.repoActions{margin-top:1px;gap:0}
+.repoActions button{
+  min-height:32px;padding:5px 12px;border-radius:6px;
+  background:#21262d;border:1px solid #30363d;color:#f0f6fc;
+  font-size:12px;box-shadow:none
+}
+.repoActions button+button{margin-left:8px}
+.repoActions button:hover{background:#30363d;border-color:#8b949e}
+.repoTabs{
+  margin:0 -32px 24px;padding:0 32px;
+  border-bottom:1px solid #21262d;gap:0;
+  background:#0d1117;overflow-x:auto
+}
+.repoTabs button{
+  position:relative;padding:14px 14px 13px;
+  border:0;border-radius:0;background:transparent;
+  color:#8b949e;font-size:13px;font-weight:500
+}
+.repoTabs button:hover{color:#f0f6fc;background:transparent}
+.repoTabs button.sel{color:#f0f6fc;border-bottom:0;background:transparent}
+.repoTabs button.sel:after{
+  content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:2px;
+  background:#f78166;border-radius:2px
+}
+.repoShell{grid-template-columns:minmax(0,1fr) 296px;gap:32px}
+.repoWorkspace{max-width:none}
+.repoToolbar{
+  margin-bottom:16px;gap:8px;align-items:center
+}
+.repoToolbar button,.repoToolbar .branchSelect{
+  min-height:32px;padding:5px 10px;border-radius:6px;
+  background:#21262d;border:1px solid #30363d;font-size:12px
+}
+.repoToolbar .branchSelect{display:flex;align-items:center}
+.branchSelect select{font-size:12px}
+.branchButton{display:none}
+.repoToolbarSpacer{flex:1}
+.repoLayout{
+  display:block;min-height:0;border:0;border-radius:6px;
+  background:transparent;overflow:visible
+}
+.repoTree{
+  display:none
+}
+.repoContent{padding:0;background:transparent}
+.repoOverview{display:flex;flex-direction:column}
+.readmeCard{
+  order:2;margin-top:24px;border:1px solid #30363d;
+  border-radius:6px;background:#0d1117
+}
+.readmeHead{
+  padding:10px 16px;background:#161b22;
+  border-bottom:1px solid #30363d;font-size:12px
+}
+.readmeBody{padding:24px 28px}
+.readmeBody h2{font-size:24px;font-weight:600}
+.readmeBody p{font-size:14px;color:#8b949e}
+.readmeStats{color:#8b949e}
+.commitStrip{
+  order:1;margin:0 0 0;border:1px solid #30363d;border-radius:6px 6px 0 0;
+  background:#161b22;padding:10px 16px
+}
+.repoLayout:has(.readmeCard) .repoContent{min-width:0}
+.repoAside{
+  padding:0 0 50px 24px;border-left:0
+}
+.repoAside section{
+  padding:0 0 20px;margin:0 0 20px;border-bottom:1px solid #21262d
+}
+.repoAside h3{font-size:16px;font-weight:600}
+.repoAside p,.repoAside .muted{font-size:13px;color:#8b949e}
+.repoAside a{font-size:13px;color:#58a6ff}
+.contributor b{font-size:13px}
+.languageRows span{font-size:12px}
+@media(max-width:900px){
+  .repoPage{padding:20px 20px 60px}
+  .repoTabs{margin-inline:-20px;padding-inline:20px}
+}
+@media(max-width:720px){
+  .repoPage{padding:16px 12px 50px}
+  .repoTabs{margin-inline:-12px;padding-inline:12px}
+  .repoTop{gap:14px}
+  .repoCrumb{font-size:18px}
+  .repoActions{width:100%;overflow:auto;justify-content:flex-start}
+  .repoActions button{white-space:nowrap}
+  .repoToolbar{flex-wrap:wrap}
+  .repoToolbarSpacer{display:block;flex-basis:100%;height:0}
+  .repoToolbar button{flex:1}
+  .repoToolbar .branchSelect{flex:1}
+  .readmeBody{padding:20px}
+}
