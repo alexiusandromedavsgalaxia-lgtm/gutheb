@@ -239,7 +239,133 @@ function Issues({issues,title,setTitle,body,setBody,onSubmit}){return <Page titl
 
 function Pulls({prs,setPRs,user}){return <Page title="Pull requests" subtitle="Review code changes before they land."><Panel title={prs.length+" open pull requests"} action={<button onClick={()=>setPRs(x=>[{id:Date.now(),title:"New pull request",state:"open",author:user.name,branch:"feature/new"},...x])}>New pull request</button>}>{prs.map(p=><div className="issue" key={p.id}><span className="open">↗</span><div><strong>{p.title}</strong><small>#{p.id} · {p.branch} · opened by {p.author}</small></div></div>)}</Panel></Page>}
 
-function Actions(){return <Page title="Actions" subtitle="Automate your builds, tests, and deployments."><div className="grid2"><Panel title="Workflows"><div className="workflow"><b>Build</b><span className="green">✓</span><small>Ready to run</small></div><div className="workflow"><b>Test</b><span className="gray">○</span><small>Waiting for workflow file</small></div></Panel><Panel title="Workflow runs"><Activity text="No workflow runs yet"/><button className="primary">New workflow</button></Panel></div></Page>}
+function Actions(){
+  const defaultYaml=`name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: \${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/`;
+
+  const [tab,setTab]=useState("workflows");
+  const [workflow,setWorkflow]=useState(()=>localStorage.getItem("gutheb-actions-yaml")||defaultYaml);
+  const [workflows,setWorkflows]=useState(()=>JSON.parse(localStorage.getItem("gutheb-actions-workflows")||"null")||[
+    {id:"ci",name:"CI",file:".github/workflows/ci.yml",state:"active",updated:"just now",triggers:"push, pull_request, manual"}
+  ]);
+  const [runs,setRuns]=useState(()=>JSON.parse(localStorage.getItem("gutheb-actions-runs")||"[]"));
+  const [selectedRun,setSelectedRun]=useState(null);
+  const [logs,setLogs]=useState({});
+  const [artifacts,setArtifacts]=useState(()=>JSON.parse(localStorage.getItem("gutheb-actions-artifacts")||"[]"));
+  const [envs,setEnvs]=useState(()=>JSON.parse(localStorage.getItem("gutheb-actions-envs")||"[]"));
+  const [vars,setVars]=useState(()=>JSON.parse(localStorage.getItem("gutheb-actions-vars")||"[]"));
+  const [secrets,setSecrets]=useState(()=>JSON.parse(localStorage.getItem("gutheb-actions-secrets")||"[]"));
+  const [runners,setRunners]=useState(()=>JSON.parse(localStorage.getItem("gutheb-actions-runners")||"[]"));
+  const [notice,setNotice]=useState("");
+  const [busy,setBusy]=useState(false);
+
+  useEffect(()=>localStorage.setItem("gutheb-actions-yaml",workflow),[workflow]);
+  useEffect(()=>localStorage.setItem("gutheb-actions-workflows",JSON.stringify(workflows)),[workflows]);
+  useEffect(()=>localStorage.setItem("gutheb-actions-runs",JSON.stringify(runs)),[runs]);
+  useEffect(()=>localStorage.setItem("gutheb-actions-artifacts",JSON.stringify(artifacts)),[artifacts]);
+  useEffect(()=>localStorage.setItem("gutheb-actions-envs",JSON.stringify(envs)),[envs]);
+  useEffect(()=>localStorage.setItem("gutheb-actions-vars",JSON.stringify(vars)),[vars]);
+  useEffect(()=>localStorage.setItem("gutheb-actions-secrets",JSON.stringify(secrets)),[secrets]);
+  useEffect(()=>localStorage.setItem("gutheb-actions-runners",JSON.stringify(runners)),[runners]);
+
+  const flash=m=>{setNotice(m);setTimeout(()=>setNotice(""),2200)};
+  const runWorkflow=(name="CI",manual=true)=>{
+    const id=Date.now();
+    const run={id,name,status:"queued",branch:"main",event:manual?"workflow_dispatch":"push",started:"just now",duration:"—",commit:"local",jobs:1};
+    setRuns(x=>[run,...x].slice(0,50));setSelectedRun(id);setTab("runs");setBusy(true);
+    const lines=[
+      "Set up job",
+      "Prepare runner: ubuntu-latest",
+      "Run actions/checkout@v4",
+      "Run actions/setup-node@v4",
+      "Run npm ci",
+      "Run npm test",
+      "Run npm run build",
+      "Post actions/upload-artifact@v4",
+      "Complete job"
+    ];
+    setLogs(x=>({...x,[id]:lines.map((v,i)=>`[00:0${i}] ${v} ✓`)}));
+    setTimeout(()=>{setRuns(x=>x.map(r=>r.id===id?{...r,status:"success",duration:"18s"}:r));setBusy(false);setArtifacts(x=>[{id,name:"dist",run:id,size:"2.4 MB",expires:"90 days"},...x].slice(0,30));flash("Workflow completed successfully");},1800);
+  };
+  const cancelRun=id=>{setRuns(x=>x.map(r=>r.id===id&&r.status==="running"||r.id===id&&r.status==="queued"?{...r,status:"cancelled"}:r));flash("Run cancelled")};
+  const rerun=id=>{const r=runs.find(x=>x.id===id);if(r)runWorkflow(r.name,false)};
+  const createWorkflow=()=>{const n=prompt("Workflow name","Deploy");if(!n?.trim())return;const clean=n.trim();setWorkflows(x=>[{id:String(Date.now()),name:clean,file:`.github/workflows/${clean.toLowerCase().replace(/\\s+/g,"-")}.yml`,state:"active",updated:"just now",triggers:"push, manual"},...x]);flash("Workflow created")};
+  const addItem=(type)=>{
+    const name=prompt(type==="secret"?"Secret name":type==="variable"?"Variable name":type==="environment"?"Environment name":type==="runner"?"Runner name":"Name");
+    if(!name?.trim())return;
+    if(type==="secret")setSecrets(x=>[...x,{name:name.trim(),updated:"just now"}]);
+    if(type==="variable")setVars(x=>[...x,{name:name.trim(),value:prompt("Value","")||"",scope:"repository"}]);
+    if(type==="environment")setEnvs(x=>[...x,{name:name.trim(),protection:"None",secrets:0,variables:0}]);
+    if(type==="runner")setRunners(x=>[...x,{name:name.trim(),status:"Idle",os:"Linux",labels:"self-hosted"}]);
+    flash((type[0].toUpperCase()+type.slice(1))+" added");
+  };
+
+  const nav=[["workflows","Workflows"],["runs","Runs"],["editor","Workflow editor"],["jobs","Jobs"],["artifacts","Artifacts"],["environments","Environments"],["variables","Variables"],["secrets","Secrets"],["runners","Runners"],["settings","Settings"]];
+  const activeRun=runs.find(r=>r.id===selectedRun)||runs[0];
+  return <Page title="Actions" subtitle="Automate builds, tests, releases, deployments, and scheduled work.">
+    {notice&&<div className="actionsNotice">{notice}</div>}
+    <div className="actionsTop">
+      <div className="actionsTabs">{nav.map(([id,label])=><button key={id} className={tab===id?"sel":""} onClick={()=>setTab(id)}>{label}</button>)}</div>
+      <div className="actionsTopBtns"><button onClick={()=>runWorkflow("CI",true)} disabled={busy}>{busy?"Running…":"▶ Run workflow"}</button><button className="primary" onClick={createWorkflow}>＋ New workflow</button></div>
+    </div>
+
+    {tab==="workflows"&&<div className="actionsGrid">
+      <Panel title={workflows.length+" workflows"} action={<button onClick={createWorkflow}>New</button>}>
+        {workflows.map(w=><div className="actionWorkflow" key={w.id}><div className="actionIcon">✓</div><div><b>{w.name}</b><small>{w.file}</small><small>{w.triggers}</small></div><span className="actionActive">{w.state}</span><button onClick={()=>{setWorkflow(defaultYaml);setTab("editor");}}>Edit</button><button onClick={()=>runWorkflow(w.name)}>Run</button></div>)}
+      </Panel>
+      <Panel title="Automation overview"><div className="actionStats"><div><b>{runs.filter(r=>r.status==="success").length}</b><small>successful runs</small></div><div><b>{runs.filter(r=>r.status==="failure").length}</b><small>failed runs</small></div><div><b>{artifacts.length}</b><small>artifacts</small></div><div><b>{envs.length}</b><small>environments</small></div></div><div className="actionFeatureList"><span>✓ YAML workflows</span><span>✓ Push / PR / schedule / manual triggers</span><span>✓ Matrix jobs & reusable steps</span><span>✓ Artifacts & logs</span><span>✓ Environments, variables & secrets</span><span>✓ Concurrency & permissions</span></div></Panel>
+    </div>}
+
+    {tab==="runs"&&<div className="actionsGrid"><Panel title={runs.length+" workflow runs"} action={<button onClick={()=>runWorkflow()}>Run again</button>}>
+      {!runs.length?<div className="empty">No runs yet. Run a workflow to create the first execution.</div>:runs.map(r=><div className="actionRun" key={r.id} onClick={()=>setSelectedRun(r.id)}><span className={"runDot "+r.status}/><div><b>{r.name}</b><small>#{String(r.id).slice(-6)} · {r.event} · {r.branch}</small></div><strong>{r.status}</strong><span>{r.duration}</span><button onClick={e=>{e.stopPropagation();rerun(r.id)}}>↻</button></div>)}</Panel>
+      <Panel title="Run details">{activeRun?<div className="runDetails"><div className="runHeader"><b>{activeRun.name}</b><span className={"statusPill "+activeRun.status}>{activeRun.status}</span></div><p>Event: {activeRun.event} · Branch: {activeRun.branch} · Commit: {activeRun.commit}</p><button onClick={()=>setTab("jobs")}>View jobs →</button><button onClick={()=>setTab("logs")}>View logs →</button></div>:<div className="empty">Select a run.</div>}</Panel>
+    </div>}
+
+    {tab==="editor"&&<Panel title="Workflow editor" action={<div className="editorActions"><button onClick={()=>setWorkflow(defaultYaml)}>Reset template</button><button className="primary" onClick={()=>{flash("Workflow saved to local workspace");setWorkflows(x=>x.map(w=>w.id==="ci"?{...w,updated:"just now"}:w))}}>Save workflow</button></div>}>
+      <div className="workflowEditor"><aside><b>Workflow</b><span>.github/workflows/ci.yml</span><span>Triggers</span><button>push</button><button>pull_request</button><button>workflow_dispatch</button><button>schedule</button><span>Jobs</span><button>build</button></aside><textarea value={workflow} onChange={e=>setWorkflow(e.target.value)} spellCheck={false}/></div>
+      <div className="yamlHints"><b>Supported building blocks</b><span>on</span><span>jobs</span><span>runs-on</span><span>steps</span><span>uses</span><span>run</span><span>env</span><span>permissions</span><span>strategy.matrix</span><span>needs</span><span>if</span><span>concurrency</span><span>environment</span><span>outputs</span><span>artifacts</span></div>
+    </Panel>}
+
+    {tab==="jobs"&&<Panel title={activeRun?"Jobs for "+activeRun.name:"Jobs"}>{activeRun?<div className="jobList"><div className="jobCard"><span className="runDot success">✓</span><div><b>build</b><small>ubuntu-latest · 2 matrix jobs</small></div><strong>{activeRun.status}</strong><button onClick={()=>setTab("logs")}>Logs</button></div><div className="stepList">{["Set up job","Checkout","Setup Node","Install dependencies","Test","Build","Upload artifact"].map((s,i)=><div key={s}><span className={activeRun.status==="success"?"green":"gray"}>{activeRun.status==="success"?"✓":"○"}</span><span>{s}</span><small>{i<2?"actions":"run"}</small></div>)}</div></div>:<div className="empty">Run a workflow first.</div>}</Panel>}
+
+    {tab==="logs"&&<Panel title="Job logs" action={activeRun&&<button onClick={()=>setTab("runs")}>Back to runs</button>}>{activeRun?<pre className="actionLogs">{(logs[activeRun.id]||["No logs available."]).join("\n")}</pre>:<div className="empty">No run selected.</div>}</Panel>}
+
+    {tab==="artifacts"&&<Panel title="Artifacts" action={<button onClick={()=>addItem("artifact")}>＋ Upload</button>}>{artifacts.length?artifacts.map(a=><div className="artifactRow" key={a.id}><span>▣</span><div><b>{a.name}</b><small>Run #{String(a.run).slice(-6)} · {a.size} · expires {a.expires}</small></div><button>Download</button></div>):<div className="empty">Artifacts created by successful workflow runs appear here.</div>}</Panel>}
+
+    {tab==="environments"&&<Panel title="Environments" action={<button onClick={()=>addItem("environment")}>＋ New environment</button>}>{envs.map(e=><div className="resourceRow" key={e.name}><div><b>{e.name}</b><small>Protection rules: {e.protection}</small></div><span>{e.secrets} secrets · {e.variables} variables</span><button>Configure</button></div>)}{!envs.length&&<div className="empty">No environments configured.</div>}</Panel>}
+
+    {tab==="variables"&&<Panel title="Variables" action={<button onClick={()=>addItem("variable")}>＋ New variable</button>}>{vars.map(v=><div className="resourceRow" key={v.name}><div><b>{v.name}</b><small>{v.scope}</small></div><code>{v.value}</code><button>⋯</button></div>)}{!vars.length&&<div className="empty">No repository variables.</div>}</Panel>}
+
+    {tab==="secrets"&&<Panel title="Secrets" action={<button onClick={()=>addItem("secret")}>＋ New secret</button>}><div className="secretWarning">Secret values are masked and are never displayed after creation.</div>{secrets.map(s=><div className="resourceRow" key={s.name}><div><b>🔒 {s.name}</b><small>Repository secret · updated {s.updated}</small></div><code>••••••••••••</code><button>⋯</button></div>)}{!secrets.length&&<div className="empty">No secrets configured.</div>}</Panel>}
+
+    {tab==="runners"&&<Panel title="Runners" action={<button onClick={()=>addItem("runner")}>＋ Add runner</button>}><div className="runnerSummary"><b>{runners.length}</b> self-hosted runners</div>{runners.map(r=><div className="resourceRow" key={r.name}><div><b>{r.name}</b><small>{r.os} · {r.labels}</small></div><span className="green">● {r.status}</span><button>⋯</button></div>)}{!runners.length&&<div className="empty">No self-hosted runners. Hosted runners can be selected with runs-on in the workflow.</div>}</Panel>}
+
+    {tab==="settings"&&<div className="actionsGrid"><Panel title="Workflow permissions"><div className="setting"><span><b>Default permissions</b><small>Read repository contents by default</small></span><select><option>Read-only</option><option>Read and write</option></select></div><div className="setting"><span><b>Fork pull request workflows</b><small>Control whether workflows from forks can run</small></span><input type="checkbox"/></div></Panel><Panel title="Advanced"><div className="setting"><span><b>Concurrency</b><small>Cancel older runs in the same group</small></span><input type="checkbox"/></div><div className="setting"><span><b>Retention</b><small>Days to keep logs and artifacts</small></span><select><option>90</option><option>30</option><option>14</option></select></div><div className="setting"><span><b>Notifications</b><small>Notify on failed workflow runs</small></span><input type="checkbox" defaultChecked/></div></Panel></div>}
+  </Page>
+}
 
 function Projects(){return <Page title="Projects" subtitle="Track work with tables, boards, and roadmaps."><div className="board"><div>Todo</div><div>In progress</div><div>Done</div><article>Plan next release</article><article>Build issue workflow</article><article>Ship first version</article></div></Page>}
 function Discussions(){return <Page title="Discussions" subtitle="Community conversations and long-form collaboration."><Panel title="Recent discussions"><Activity text="Welcome to the community"/><Activity text="Share what you are building"/><Activity text="Feature ideas"/></Panel></Page>}
