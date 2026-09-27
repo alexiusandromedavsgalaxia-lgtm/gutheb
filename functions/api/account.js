@@ -74,7 +74,7 @@ export async function onRequestPost({request,env}){
     const now=new Date().toISOString();
     await repos.prepare("INSERT INTO repos(id,owner_id,name,description,visibility,language,license,stars,forks,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,description=excluded.description,visibility=excluded.visibility,language=excluded.language,license=excluded.license,stars=excluded.stars,forks=excluded.forks,updated_at=excluded.updated_at").bind(id,user.id,name,String(r.description||""),String(r.visibility||"Public"),String(r.language||""),String(r.license||"MIT"),Number(r.stars||0),Number(r.forks||0),now).run();
     await repos.prepare("DELETE FROM repo_files WHERE repo_id=?").bind(id).run();await repos.prepare("DELETE FROM repo_folders WHERE repo_id=?").bind(id).run();
-    const statements=[];for(const [path,content] of Object.entries(r.files||{}))statements.push(repos.prepare("INSERT INTO repo_files(repo_id,path,content) VALUES(?,?,?)").bind(id,path,String(content??"")));for(const path of r.folders||[])statements.push(repos.prepare("INSERT INTO repo_folders(repo_id,path) VALUES(?,?)").bind(id,path));if(statements.length)await repos.batch(statements);
+    const statements=[];for(const [path,content] of Object.entries(r.files||{}))statements.push(repos.prepare("INSERT INTO repo_files(repo_id,path,content) VALUES(?,?,?)").bind(id,path,String(content??"")));for(const path of r.folders||[])statements.push(repos.prepare("INSERT INTO repo_folders(repo_id,path) VALUES(?,?)").bind(id,path));for(let i=0;i<statements.length;i+=80)await repos.batch(statements.slice(i,i+80));
     return json({ok:true,id});
   }
   if(action==="archive"){
