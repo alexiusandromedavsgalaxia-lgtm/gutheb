@@ -23,7 +23,7 @@ async function gh(path){
   const r=await fetch("https://api.github.com"+path,{headers:{"Accept":"application/vnd.github+json","User-Agent":"GutHeb-Repository-Importer"}});
   const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.message||"GitHub request failed");return data;
 }
-function dbs(env){return env.REPOS_DB||env.repositories||env.REPOSITORIES||env.GUTHEB_DB}
+function dbs(env){return env.repositories}
 export async function onRequestPost({request,env}){
   const currentUser=await userFrom(request,env);if(!currentUser)return json({error:"Not authenticated."},401);
   let body={};try{body=await request.json()}catch{}
