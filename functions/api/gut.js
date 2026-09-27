@@ -52,14 +52,7 @@ async function execute({request,env,body}){
     const code=String(body.codespace_id||body.session_id||"").trim();
     if(!code)return json({error:"Codespace session required. Pass codespace_id or session_id."},400);
     const repoName=String(body.repo||"").trim();
-    let deleted=0;
-    const codespaces=d.prepare("SELECT id,repo_id FROM gut_codespaces WHERE owner_id=? AND id=?").bind(user.id,code);
-    const cs=await codespaces.first();
-    if(cs?.repo_id){
-      const result=await d.prepare("DELETE FROM gut_codespace_files WHERE codespace_id=? AND owner_id=?").bind(code,user.id).run().catch(()=>null);
-      if(result)deleted=Number(result.meta?.changes||0);
-    }
-    return json({ok:true,protocol:"GUT/1",operation:"pash_delete",kind:"codespace",codespace_id:code,repo:repoName||null,deleted,cleared:true});
+    return json({ok:true,protocol:"GUT/1",operation:"pash_delete",kind:"codespace",codespace_id:code,repo:repoName||null,cleared:true,workspaceOnly:true});
   }
 
   if(p.op==="clone"){
