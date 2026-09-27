@@ -293,31 +293,26 @@ function Codespaces(){return <Page title="Codespaces" subtitle="Cloud developmen
 function Marketplace(){
   const [tab,setTab]=useState("actions");
   const [q,setQ]=useState("");
-  const [category,setCategory]=useState("All");
   const [installed,setInstalled]=useState(()=>JSON.parse(localStorage.getItem("gutheb-market-installed")||"[]"));
-  const categories=["All","Actions","CI/CD","Build","Deploy","Testing","Security","AI","Utilities"];
-  const catalog=[
-    {id:"gutheb/hello-action",name:"Hello Action",author:"GutHeb",category:"Actions",description:"A native GutHeb Action package.",version:"1.0.0",downloads:"—",verified:true},
-    {id:"gutheb/build-action",name:"Build",author:"GutHeb",category:"Build",description:"Build projects with GutHeb Runner.",version:"1.0.0",downloads:"—",verified:true},
-    {id:"gutheb/deploy-action",name:"Deploy",author:"GutHeb",category:"Deploy",description:"Deploy a project from a native YUML workflow.",version:"1.0.0",downloads:"—",verified:true},
-    {id:"gutheb/test-action",name:"Test",author:"GutHeb",category:"Testing",description:"Run project tests in GutHeb Runner.",version:"1.0.0",downloads:"—",verified:true},
-    {id:"community/example-action",name:"Example Action",author:"Community",category:"Actions",description:"Community-published Action example.",version:"0.1.0",downloads:"—",verified:false}
-  ];
-  const filtered=catalog.filter(x=>(category==="All"||x.category===category)&&((x.name+" "+x.description+" "+x.author).toLowerCase().includes(q.toLowerCase())));
+  const published=[];
+  const filtered=published.filter(x=>(x.name+" "+x.description+" "+x.author).toLowerCase().includes(q.toLowerCase()));
   function install(item){
     if(installed.includes(item.id)) return flash("Action already installed");
     const next=[...installed,item.id];setInstalled(next);localStorage.setItem("gutheb-market-installed",JSON.stringify(next));flash(item.name+" installed");
   }
   return <Page title="Marketplace" subtitle="Discover and publish native GutHeb Actions.">
     <div className="marketHero">
-      <div><span className="marketEyebrow">GUTHEB MARKETPLACE</span><h2>Actions built for GutHeb</h2><p>People can create their own Actions, publish them here, and install them into repositories.</p></div>
+      <div><span className="marketEyebrow">GUTHEB MARKETPLACE</span><h2>Your Action catalog</h2><p>Only Actions that people actually publish appear here. No placeholder or generic packages.</p></div>
       <button className="primary" onClick={()=>flash("Publisher workspace coming next")}>＋ Publish an Action</button>
     </div>
     <div className="marketTabs"><button className={tab==="actions"?"sel":""} onClick={()=>setTab("actions")}>Actions</button><button className={tab==="installed"?"sel":""} onClick={()=>setTab("installed")}>Installed</button></div>
-    <div className="marketToolbar"><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search Actions..." /><div className="marketCategories">{categories.map(x=><button key={x} className={category===x?"sel":""} onClick={()=>setCategory(x)}>{x}</button>)}</div></div>
-    {tab==="actions"&&<div className="marketActionGrid">{filtered.map(item=><article className="marketActionCard" key={item.id}><div className="marketActionIcon">⚡</div><div className="marketActionBody"><div className="marketActionTitle"><h3>{item.name}</h3>{item.verified&&<span className="verified">✓ GutHeb</span>}</div><p>{item.description}</p><small>{item.author} · v{item.version} · {item.category}</small><div className="marketActionFooter"><span>{item.downloads} downloads</span><button onClick={()=>install(item)}>{installed.includes(item.id)?"Installed":"Install"}</button></div></div></article>)}</div>}
-    {tab==="installed"&&<Panel title="Installed Actions">{installed.length?installed.map(id=><div className="resourceRow" key={id}><div><b>{catalog.find(x=>x.id===id)?.name||id}</b><small>{id}</small></div><span className="statusPill success">Installed</span></div>):<div className="empty">No Actions installed yet.</div>}</Panel>}
-    {!filtered.length&&tab==="actions"&&<div className="empty">No Actions match your search.</div>}
+    {tab==="actions"&&<div className="marketEmpty">
+      <div className="marketEmptyIcon">＋</div>
+      <h3>No published Actions yet</h3>
+      <p>When you publish an Action, it will appear here with its own name, author, version and description.</p>
+      <button className="primary" onClick={()=>flash("Publisher workspace coming next")}>Publish your first Action</button>
+    </div>}
+    {tab==="installed"&&<Panel title="Installed Actions">{installed.length?<div>{installed.map(id=><div className="resourceRow" key={id}><div><b>{id.split("/").pop()}</b><small>{id}</small></div><span className="statusPill success">Installed</span></div>)}</div>:<div className="empty">No Actions installed yet.</div>}</Panel>}
   </Page>
 }
 function Explore(){return <Page title="Explore" subtitle="Discover projects, topics, and developers."><div className="grid2"><Panel title="Trending"><RepoMini r={{name:"awesome-project",description:"A trending open-source project",language:"JavaScript"}}/></Panel><Panel title="Topics"><div className="topics">{["javascript","react","cloud","ai","games","web"].map(x=><span key={x}>#{x}</span>)}</div></Panel></div></Page>}
