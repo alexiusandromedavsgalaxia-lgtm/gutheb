@@ -294,23 +294,46 @@ function Marketplace(){
   const [tab,setTab]=useState("actions");
   const [q,setQ]=useState("");
   const [installed,setInstalled]=useState(()=>JSON.parse(localStorage.getItem("gutheb-market-installed")||"[]"));
-  const published=[];
-  const filtered=published.filter(x=>(x.name+" "+x.description+" "+x.author).toLowerCase().includes(q.toLowerCase()));
-  function install(item){
-    if(installed.includes(item.id)) return flash("Action already installed");
-    const next=[...installed,item.id];setInstalled(next);localStorage.setItem("gutheb-market-installed",JSON.stringify(next));flash(item.name+" installed");
+  const [published,setPublished]=useState([]);
+  const [publishing,setPublishing]=useState(false);
+  const [form,setForm]=useState({name:"",version:"1.0.0",description:"",definition:""});
+  const [saving,setSaving]=useState(false);
+  const [error,setError]=useState("");
+
+  async function loadPublished(){
+    try{const r=await fetch("/api/marketplace?op=actions",{credentials:"include"});const d=await r.json();if(!r.ok)throw new Error(d.error||"Could not load Actions");setPublished(d.actions||[]);}
+    catch(e){setError(e.message)}
   }
+  useEffect(()=>{loadPublished()},[]);
+
+  async function publish(e){
+    e.preventDefault();setError("");
+    const payload={action:"publish",name:form.name.trim(),version:form.version.trim(),description:form.description.trim(),definition:form.definition.trim()};
+    if(!payload.name||!payload.version||!payload.description||!payload.definition)return setError("Name, version, description and Action definition are required.");
+    setSaving(true);
+    try{const r=await fetch("/api/marketplace",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const d=await r.json();if(!r.ok)throw new Error(d.error||"Could not publish Action");setPublished(x=>[d.action,...x]);setForm({name:"",version:"1.0.0",description:"",definition:""});setPublishing(false);setTab("actions");flash("Action published to GutHeb Marketplace");}
+    catch(e){setError(e.message)}finally{setSaving(false)}
+  }
+  function install(item){if(installed.includes(item.id))return flash("Action already installed");const next=[...installed,item.id];setInstalled(next);localStorage.setItem("gutheb-market-installed",JSON.stringify(next));flash(item.name+" installed");}
+  const filtered=published.filter(x=>(x.name+" "+x.description+" "+x.author_name).toLowerCase().includes(q.toLowerCase()));
+
+  if(publishing)return <Page title="Publish an Action" subtitle="Create a native GutHeb Action with your own definition and structure.">
+    <form className="panel marketPublisher" onSubmit={publish}>
+      <div className="publisherIntro"><span className="marketEyebrow">GUTHEB MARKETPLACE</span><h2>New Action</h2><p>GutHeb validates only the Marketplace metadata. The Action definition is yours and is stored exactly as supplied.</p></div>
+      {error&&<div className="actionError">{error}</div>}
+      <div className="publisherGrid"><label>Name<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="My Action" required/></label><label>Version<input value={form.version} onChange={e=>setForm({...form,version:e.target.value})} placeholder="1.0.0" required/></label></div>
+      <label>Description<textarea value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="What does this Action do?" required/></label>
+      <label>Action definition<textarea className="marketDefinition" value={form.definition} onChange={e=>setForm({...form,definition:e.target.value})} placeholder="Write your own Action structure here. GutHeb will not replace it with a predefined template." spellCheck={false} required/></label>
+      <div className="publisherActions"><button type="button" onClick={()=>{setPublishing(false);setError("")}}>Cancel</button><button className="primary" disabled={saving}>{saving?"Publishing…":"Publish Action"}</button></div>
+    </form>
+  </Page>;
+
   return <Page title="Marketplace" subtitle="Discover and publish native GutHeb Actions.">
-    <div className="marketHero">
-      <div><span className="marketEyebrow">GUTHEB MARKETPLACE</span><h2>Your Action catalog</h2><p>Only Actions that people actually publish appear here. No placeholder or generic packages.</p></div>
-      <button className="primary" onClick={()=>flash("Publisher workspace coming next")}>＋ Publish an Action</button>
-    </div>
+    <div className="marketHero"><div><span className="marketEyebrow">GUTHEB MARKETPLACE</span><h2>Your Action catalog</h2><p>Only Actions that people actually publish appear here.</p></div><button className="primary" onClick={()=>{setPublishing(true);setError("")}}>＋ Publish an Action</button></div>
     <div className="marketTabs"><button className={tab==="actions"?"sel":""} onClick={()=>setTab("actions")}>Actions</button><button className={tab==="installed"?"sel":""} onClick={()=>setTab("installed")}>Installed</button></div>
-    {tab==="actions"&&<div className="marketEmpty">
-      <div className="marketEmptyIcon">＋</div>
-      <h3>No published Actions yet</h3>
-      <p>When you publish an Action, it will appear here with its own name, author, version and description.</p>
-      <button className="primary" onClick={()=>flash("Publisher workspace coming next")}>Publish your first Action</button>
+    {tab==="actions"&&<div><div className="marketSearch"><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search published Actions…"/></div>{error&&<div className="actionError">{error}</div>}
+      {filtered.length?<div className="marketGrid">{filtered.map(item=><article className="marketActionCard" key={item.id}><div className="marketActionHead"><div><h3>{item.name}</h3><small>{item.author_name} · v{item.version}</small></div><button onClick={()=>install(item)}>{installed.includes(item.id)?"Installed":"Install"}</button></div><p>{item.description}</p><code>{item.slug}</code></article>)}</div>:
+      <div className="marketEmpty"><div className="marketEmptyIcon">＋</div><h3>No published Actions yet</h3><p>Publish an Action and it will appear here from the GutHeb Marketplace database.</p><button className="primary" onClick={()=>{setPublishing(true);setError("")}}>Publish your first Action</button></div>}
     </div>}
     {tab==="installed"&&<Panel title="Installed Actions">{installed.length?<div>{installed.map(id=><div className="resourceRow" key={id}><div><b>{id.split("/").pop()}</b><small>{id}</small></div><span className="statusPill success">Installed</span></div>)}</div>:<div className="empty">No Actions installed yet.</div>}</Panel>}
   </Page>
