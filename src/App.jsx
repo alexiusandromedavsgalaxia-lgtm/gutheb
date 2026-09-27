@@ -75,10 +75,10 @@ function App(){
       const source=d.repository||{};
       const name=(importForm.name.trim()||source.name||"imported-repository").replace(/^\/+|\/+$/g,"");
       if(!/^[A-Za-z0-9._-]+$/.test(name))throw new Error("Repository name can only contain letters, numbers, dots, underscores and hyphens.");
-      const r={owner:user.name,name,visibility:"Public",language:source.language||"",stars:source.stars||0,forks:source.forks||0,updated:"just now",description:source.description||"",license:source.license||"MIT",files:source.files||{},folders:source.folders||[],source:"github",sourceUrl:source.sourceUrl||importForm.url.trim(),defaultBranch:source.defaultBranch||"main"};
+      const r={owner:user.name,name,visibility:"Public",language:source.language||"",stars:source.stars||0,forks:source.forks||0,updated:"just now",description:source.description||"",license:source.license||"MIT",files:source.files||{},folders:source.folders||[],source:"github",sourceUrl:source.sourceUrl||importForm.url.trim(),defaultBranch:source.defaultBranch||"main",currentBranch:source.defaultBranch||"main"};
       const save=await fetch("/api/account",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"repo",repo:r})});
       const sd=await save.json();if(!save.ok)throw new Error(sd.error||"Could not save imported repository");
-      const saved={...r,id:sd.id};setRepos(x=>[saved,...x]);setSelectedRepo(saved);setImportOpen(false);setImportForm({url:"",branch:"",name:""});flash("GitHub repository imported into GutHeb");go("repos");
+      const saved={...r,id:sd.id};setRepoBranches(x=>({...x,[user.name+"/"+name]:[r.currentBranch||"main"]}));setRepos(x=>[saved,...x]);setSelectedRepo(saved);setImportOpen(false);setImportForm({url:"",branch:"",name:""});flash("GitHub repository imported into GutHeb");go("repos");
     }catch(err){flash(err.message)}finally{setImporting(false)}
   }
   async function createRepo(e){
