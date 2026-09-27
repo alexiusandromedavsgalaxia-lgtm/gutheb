@@ -23,6 +23,7 @@ async function gh(path){
   const r=await fetch("https://api.github.com"+path,{headers:{"Accept":"application/vnd.github+json","User-Agent":"GutHeb-Repository-Importer"}});
   const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.message||"GitHub request failed");return data;
 }
+function dbs(env){return env.REPOS_DB||env.repositories||env.REPOSITORIES||env.GUTHEB_DB}
 export async function onRequestPost({request,env}){
   if(!(await userFrom(request,env)))return json({error:"Not authenticated."},401);
   let body={};try{body=await request.json()}catch{}
@@ -48,7 +49,23 @@ export async function onRequestPost({request,env}){
       files[entry.path]=content;
       const parts=entry.path.split("/");for(let i=1;i<parts.length;i++)folders.add(parts.slice(0,i).join("/"));
     }
-    return json({ok:true,repository:{owner:meta.owner?.login||parsed.owner,name:meta.name||parsed.repo,description:meta.description||"",visibility:"Public",language:meta.language||"",license:meta.license?.spdx_id||"",stars:meta.stargazers_count||0,forks:meta.forks_count||0,updated:"just now",files,folders:[...folders],defaultBranch:branch,source:"github",sourceUrl:meta.html_url}});
-  }catch(e){return json({error:e.message||"Could not import repository from GitHub."},502)}
+    const repos=dbs(env);if(!repos)return json({error:"REPOS_DB is not bound to this Cloudflare project."},503);
+    const username=String(body.username||"").trim();
+    const users=env.USERS_DB||env.users||env.USERS||env.GUTHEB_DB;
+    const me=users?await users.prepare("SELECT id,username FROM users WHERE username=?").bind(username).first():null;
+    const ownerUser=me||await users?.prepare("SELECT id,username FROM users WHERE id IN (SELECT user_id FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?)").bind("",new Date().toISOString()).first();
+    const ownerId=ownerUser?.id;
+    if(!ownerId)return json({error:"Could not resolve the GutHeb account for this import."},500);
+    const repoName=String(body.targetName||meta.name||parsed.repo).trim();
+    if(!/^[A-Za-z0-9._-]+$/.test(repoName))return json({error:"Invalid GutHeb repository name."},400);
+    const existing=await repos.prepare("SELECT id FROM repos WHERE owner_id=? AND name=?").bind(ownerId,repoName).first();
+    if(existing)return json({error:"A repository with that name already exists in GutHeb."},409);
+    const repoId=crypto.randomUUID(),now=new Date().toISOString();
+    await repos.prepare("INSERT INTO repos(id,owner_id,name,description,visibility,language,license,stars,forks,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)").bind(repoId,ownerId,repoName,meta.description||"","Public",meta.language||"",meta.license?.spdx_id||"MIT",meta.stargazers_count||0,meta.forks_count||0,now).run();
+    const statements=[];
+    for(const [path,content] of Object.entries(files))statements.push(repos.prepare("INSERT INTO repo_files(repo_id,path,content) VALUES(?,?,?)").bind(repoId,path,String(content??"")));
+    for(const path of folders)statements.push(repos.prepare("INSERT INTO repo_folders(repo_id,path) VALUES(?,?)").bind(repoId,path));
+    for(let i=0;i<statements.length;i+=80)await repos.batch(statements.slice(i,i+80));
+    return json({ok:true,id:repoId,repository:{owner:ownerUser.username,name:repoName,description:meta.description||"",visibility:"Public",language:meta.language||"",license:meta.license?.spdx_id||"MIT",stars:meta.stargazers_count||0,forks:meta.forks_count||0,defaultBranch:branch,source:"github",sourceUrl:meta.html_url,filesImported:Object.keys(files).length}});  }catch(e){return json({error:e.message||"Could not import repository from GitHub."},502)}
 }
 export async function onRequestOptions(){return new Response(null,{status:204,headers:{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"content-type","Access-Control-Allow-Methods":"POST,OPTIONS"}})}
