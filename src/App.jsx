@@ -195,7 +195,7 @@ function App(){
         {page==="projects"&&<Projects/>}
         {page==="discussions"&&<Discussions/>}
         {page==="codespaces"&&<Codespaces/>}
-        {page==="marketplace"&&<Marketplace repos={repos} selectedRepo={selectedRepo} saveLocalRepo={saveLocalRepo}/>}
+        {page==="marketplace"&&<Marketplace repos={repos} selectedRepo={selectedRepo} saveLocalRepo={saveLocalRepo} user={user}/>}
         {page==="explore"&&<Explore/>}
         {page==="notifications"&&<Notifications/>}
         {page==="profile"&&<Profile user={user} profile={profile} setProfile={setProfile} save={saveProfile} repos={repos.filter(r=>!r.owner||r.owner===user.name)} pinned={pinned} togglePin={togglePin}/>}
@@ -294,7 +294,7 @@ function Actions({repo}){
 function Projects(){return <Page title="Projects" subtitle="Track work with tables, boards, and roadmaps."><div className="board"><div>Todo</div><div>In progress</div><div>Done</div><article>Plan next release</article><article>Build issue workflow</article><article>Ship first version</article></div></Page>}
 function Discussions(){return <Page title="Discussions" subtitle="Community conversations and long-form collaboration."><Panel title="Recent discussions"><Activity text="Welcome to the community"/><Activity text="Share what you are building"/><Activity text="Feature ideas"/></Panel></Page>}
 function Codespaces(){return <Page title="Codespaces" subtitle="Cloud development environments for your repositories."><Panel title="Your codespaces"><div className="empty">No codespaces yet.<br/><button className="primary">Create a codespace</button></div></Panel></Page>}
-function Marketplace({repos,selectedRepo,saveLocalRepo}){
+function Marketplace({repos,selectedRepo,saveLocalRepo,user}){
   const [tab,setTab]=useState("actions");
   const [q,setQ]=useState("");
   const [installed,setInstalled]=useState(()=>JSON.parse(localStorage.getItem("gutheb-market-installed")||"[]"));
