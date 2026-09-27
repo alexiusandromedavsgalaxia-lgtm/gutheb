@@ -127,3 +127,11 @@ textarea{min-height:110px;resize:vertical}
 .actionLogs{max-height:65vh;overflow:auto;background:#090c10;border:1px solid var(--border);border-radius:8px;padding:14px;color:#d1d5db;font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap}
 .actionsRealNotice{margin-top:12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px}
 @media(max-width:720px){.actionsToolbar button{padding:8px 9px}.realRunRow{grid-template-columns:14px minmax(0,1fr) auto}.realRunRow>span:last-child{display:none}}
+
+/* GutHeb Actions / YUML */
+.yumlEditor{padding:0;background:#080b10}
+.yumlBar{height:38px;display:flex;align-items:center;justify-content:space-between;padding:0 13px;border-bottom:1px solid var(--border);color:#8f9caf;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.yumlBar span:last-child{color:#8ea8ff}
+.yumlEditor textarea{display:block;border:0;border-radius:0;min-height:320px;padding:18px 20px;background:#080b10;color:#dce6f5;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:1.7;resize:vertical;box-shadow:none}
+.yumlEditor textarea:focus{box-shadow:none;border:0}
+.actionsRealNotice{margin-top:14px;padding:12px 14px;border:1px solid #33405a;border-radius:9px;background:#101722;color:#9daabd;font-size:12px}
