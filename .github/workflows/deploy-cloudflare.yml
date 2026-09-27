@@ -1,0 +1,79 @@
+name: Deploy GutHeb to Cloudflare
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gutheb-cloudflare-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Cloudflare credentials
+        run: |
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "Missing CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "Missing CLOUDFLARE_API_TOKEN"; exit 1; }
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Wrangler
+        run: npm install --global wrangler@latest
+
+      - name: Ensure guthebactions D1 exists
+        id: actions_db
+        shell: bash
+        run: |
+          set -euo pipefail
+          DB_ID="$(wrangler d1 list --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const a=JSON.parse(s);const x=a.find(x=>x.name==="guthebactions");process.stdout.write(x?.uuid||"")})')"
+          if [ -z "$DB_ID" ]; then
+            echo "guthebactions does not exist. Creating it..."
+            wrangler d1 create guthebactions
+            DB_ID="$(wrangler d1 list --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const a=JSON.parse(s);const x=a.find(x=>x.name==="guthebactions");process.stdout.write(x?.uuid||"")})')"
+          fi
+          test -n "$DB_ID"
+          echo "id=$DB_ID" >> "$GITHUB_OUTPUT"
+          echo "Using guthebactions: $DB_ID"
+
+      - name: Generate production Wrangler config
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed "s/REPLACE_WITH_GUTHEBACTIONS_D1_ID/${{ steps.actions_db.outputs.id }}/g" wrangler.jsonc > wrangler.deploy.jsonc
+          mv wrangler.deploy.jsonc wrangler.jsonc
+
+      - name: Apply guthebactions migrations
+        run: wrangler d1 migrations apply guthebactions --remote --config wrangler.jsonc
+
+      - name: Build GutHeb
+        run: npm run build
+
+      - name: Ensure Cloudflare Pages project exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! wrangler pages project list --config wrangler.jsonc --format=json | grep -q '"name":"gutheb"' ; then
+            wrangler pages project create gutheb --production-branch main --config wrangler.jsonc
+          fi
+
+      - name: Deploy GutHeb Pages + Functions
+        run: wrangler pages deploy dist --project-name gutheb --branch main --config wrangler.jsonc
+
+      - name: Deployment summary
+        run: |
+          echo "GutHeb deployed."
+          echo "D1: guthebactions"
+          echo "Marketplace API: /api/marketplace"
