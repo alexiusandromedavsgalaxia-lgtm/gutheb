@@ -191,7 +191,7 @@ function App(){
         {page==="new"&&<NewRepo form={newRepo} setForm={setNewRepo} onSubmit={createRepo}/>}
         {page==="issues"&&<Issues issues={issues} user={user} title={issueTitle} setTitle={setIssueTitle} body={issueBody} setBody={setIssueBody} onSubmit={createIssue}/>}
         {page==="pulls"&&<Pulls prs={prs} setPRs={setPRs} user={user}/>}
-        {page==="actions"&&<Actions repo={selectedRepo}/>}
+        {page==="actions"&&<Actions repo={selectedRepo} flash={flash}/>}
         {page==="projects"&&<Projects/>}
         {page==="discussions"&&<Discussions/>}
         {page==="codespaces"&&<Codespaces/>}
@@ -239,7 +239,7 @@ function Issues({issues,title,setTitle,body,setBody,onSubmit}){return <Page titl
 
 function Pulls({prs,setPRs,user}){return <Page title="Pull requests" subtitle="Review code changes before they land."><Panel title={prs.length+" open pull requests"} action={<button onClick={()=>setPRs(x=>[{id:Date.now(),title:"New pull request",state:"open",author:user.name,branch:"feature/new"},...x])}>New pull request</button>}>{prs.map(p=><div className="issue" key={p.id}><span className="open">↗</span><div><strong>{p.title}</strong><small>#{p.id} · {p.branch} · opened by {p.author}</small></div></div>)}</Panel></Page>}
 
-function Actions({repo}){
+function Actions({repo,flash}){
   const [tab,setTab]=useState("runs"),[runs,setRuns]=useState([]),[jobs,setJobs]=useState([]),[artifacts,setArtifacts]=useState([]),[selectedRun,setSelectedRun]=useState(null),[logs,setLogs]=useState(""),[loading,setLoading]=useState(true),[running,setRunning]=useState(false),[error,setError]=useState(""),[yuml,setYuml]=useState("");
   async function loadRuns(){
     setLoading(true);setError("");
@@ -250,12 +250,12 @@ function Actions({repo}){
     try{
       const installed=Object.entries(repo?.files||{}).find(([path])=>path.startsWith(".gh/yuml/")&&path.endsWith(".yuml"));
       if(installed){setYuml(installed[1]||"");return;}
-      const r=await fetch("/api/actions?op=default"),d=await r.json();if(r.ok)setYuml(d.yuml||"")
+      const r=await fetch("/api/actions?op=default",{credentials:"include"}),d=await r.json();if(r.ok)setYuml(d.yuml||"")
     }catch{}
   }
   async function validate(){
     setError("");
-    try{const r=await fetch("/api/actions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"validate",yuml})}),d=await r.json();if(!r.ok)throw new Error(d.error||"Invalid YUML");flash("YUML válido ✓")}
+    try{const r=await fetch("/api/actions",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({action:"validate",yuml})}),d=await r.json();if(!r.ok)throw new Error(d.error||"Invalid YUML");flash("YUML válido ✓")}
     catch(e){setError(e.message)}
   }
   async function dispatch(){
@@ -268,11 +268,11 @@ function Actions({repo}){
   }
   async function loadRun(run){
     setSelectedRun(run);setTab("jobs");setError("");
-    try{const [j,a]=await Promise.all([fetch("/api/actions?op=jobs&run_id="+encodeURIComponent(run.id)),fetch("/api/actions?op=artifacts&run_id="+encodeURIComponent(run.id))]);const jd=await j.json(),ad=await a.json();if(!j.ok)throw new Error(jd.error||"Could not load jobs");setJobs(jd.jobs||[]);setArtifacts(ad.artifacts||[])}
+    try{const [j,a]=await Promise.all([fetch("/api/actions?op=jobs&run_id="+encodeURIComponent(run.id),{credentials:"include"}),fetch("/api/actions?op=artifacts&run_id="+encodeURIComponent(run.id),{credentials:"include"})]);const jd=await j.json(),ad=await a.json();if(!j.ok)throw new Error(jd.error||"Could not load jobs");setJobs(jd.jobs||[]);setArtifacts(ad.artifacts||[])}
     catch(e){setError(e.message)}
   }
   async function loadLogs(jobId){
-    try{const r=await fetch("/api/actions?op=logs&job_id="+encodeURIComponent(jobId)),d=await r.json();if(!r.ok)throw new Error(d.error||"Could not load logs");setLogs(d.logs||"");setTab("logs")}catch(e){setError(e.message)}
+    try{const r=await fetch("/api/actions?op=logs&job_id="+encodeURIComponent(jobId),{credentials:"include"}),d=await r.json();if(!r.ok)throw new Error(d.error||"Could not load logs");setLogs(d.logs||"");setTab("logs")}catch(e){setError(e.message)}
   }
   useEffect(()=>{loadDefault();loadRuns();const id=setInterval(loadRuns,5000);return()=>clearInterval(id)},[]);
   return <Page title="GutHeb Actions" subtitle="Automatizaciones nativas de GutHeb ejecutadas desde YUML." action={<div className="actionsToolbar"><button onClick={loadRuns}>↻ Refresh</button><button className="primary" onClick={dispatch} disabled={running}>{running?"Enqueuing…":"▶ Run YUML"}</button></div>}>
@@ -386,7 +386,7 @@ function Notifications(){return <Page title="Notifications"><Panel title="Inbox"
 function Profile({user,profile,setProfile,save,repos,pinned,togglePin}){const avatarFile=e=>{const f=e.target.files?.[0];if(!f)return;if(f.size>4*1024*1024)return;const reader=new FileReader();reader.onload=()=>setProfile(p=>({...p,avatar:String(reader.result||"")}));reader.readAsDataURL(f)};return <Page title={user.name} subtitle={user.email}><div className="profileHero"><div className="avatar">{profile.avatar?<img src={profile.avatar} alt="Profile"/>:<span>{user.name.slice(0,1).toUpperCase()}</span>}</div><div><h2>{user.name}</h2><p>{profile.bio||"Add a short bio to your profile."}</p></div></div><form className="panel form" onSubmit={save}><label>Username<input required value={profile.username??user.name} onChange={e=>setProfile({...profile,username:e.target.value})}/></label><label>Profile photo<input type="file" accept="image/*" onChange={avatarFile}/></label><label>Bio<textarea value={profile.bio} onChange={e=>setProfile({...profile,bio:e.target.value})}/></label><label>Location<input value={profile.location} onChange={e=>setProfile({...profile,location:e.target.value})}/></label><label>Website<input value={profile.website} onChange={e=>setProfile({...profile,website:e.target.value})}/></label><button className="primary">Save profile</button></form><Panel title="Repositories">{repos.map(r=><RepoMini r={r} key={r.name} pinned={pinned.includes(r.name)} pin={()=>togglePin(r.name)}/>)}</Panel></Page>}
 function Settings({settings,setSettings,user}){return <Page title="Settings" subtitle="Manage your GutHeb account and preferences."><Panel title="Account"><div className="setting"><span><b>Username</b><small>{user.name}</small></span><button>Change</button></div><div className="setting"><span><b>Email</b><small>{user.email}</small></span><button>Manage</button></div></Panel><Panel title="Preferences"><div className="setting"><span><b>Theme</b><small>Dark developer theme</small></span><select value={settings.theme} onChange={e=>setSettings({...settings,theme:e.target.value})}><option>dark</option><option>light</option></select></div><div className="setting"><span><b>Email notifications</b><small>Receive product updates</small></span><input type="checkbox" checked={settings.email} onChange={e=>setSettings({...settings,email:e.target.checked})}/></div></Panel><Panel title="Danger zone"><button className="danger">Delete account</button></Panel></Page>}
 
-function Repo({repo,tab,setTab,tree,file,openFile,go,packages,user,repoBranches,createBranch,selectBranch,downloadRepoZip,openInWorkers}){
+function Repo({repo,tab,setTab,tree,file,openFile,go,packages,user,repoBranches,createBranch,selectBranch,downloadRepoZip,openInWorkers,flash}){
   const [draft,setDraft]=useState(file?.content||"");
   useEffect(()=>setDraft(file?.content||""),[file?.path]);
   const folders=repo.folders||[], files=tree||[];
