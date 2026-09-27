@@ -135,3 +135,5 @@ textarea{min-height:110px;resize:vertical}
 .aiChat form button{white-space:nowrap}
 @media(max-width:1000px){.topnav{display:none}.appbody{grid-template-columns:220px 1fr}.grid2,.marketgrid{grid-template-columns:1fr}}
 @media(max-width:720px){.top{height:auto;min-height:64px;flex-wrap:wrap;padding:9px 12px}.search{order:3;width:100%;flex-basis:100%}.appbody{grid-template-columns:1fr}.leftnav{display:none}.page{padding:24px 14px 50px}.grid2,.marketgrid,.board{grid-template-columns:1fr}.repoCode{grid-template-columns:1fr;min-height:0}.filetree{border-right:0;border-bottom:1px solid #30363d;max-height:220px}.pagehead{flex-direction:column}.profileHero{align-items:flex-start}.topuser{margin-left:auto}.topuser button:last-child{display:none}}
+
+.navicon img{filter:brightness(0) invert(1)!important;opacity:.92}.navicon{color:#fff!important}.navitem{color:#f0f6fc}.repo-nav{color:#c9d1d9}
