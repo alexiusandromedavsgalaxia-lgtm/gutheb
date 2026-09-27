@@ -359,3 +359,8 @@ textarea{min-height:110px;resize:vertical}
   .marketActionCard{padding:15px}
   .marketTabs{gap:16px}
 }
+
+.marketEmpty{min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border:1px dashed #293445;border-radius:16px;background:#0d131b;padding:36px}
+.marketEmptyIcon{width:46px;height:46px;border:1px solid #344157;border-radius:12px;display:grid;place-items:center;font-size:22px;color:#9eacc0;margin-bottom:14px}
+.marketEmpty h3{margin:0 0 7px;font-size:16px}
+.marketEmpty p{max-width:440px;margin:0 0 18px;color:#818d9e;font-size:12px;line-height:1.55}
