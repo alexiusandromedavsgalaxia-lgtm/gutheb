@@ -21,6 +21,9 @@ function App(){
   const [issues,setIssues]=useState(seedIssues);
   const [prs,setPRs]=useState(seedPRs);
   const [newRepo,setNewRepo]=useState({name:"",description:"",visibility:"Public"});
+  const [importOpen,setImportOpen]=useState(false);
+  const [importing,setImporting]=useState(false);
+  const [importForm,setImportForm]=useState({url:"",branch:"",name:""});
   const [issueTitle,setIssueTitle]=useState("");
   const [issueBody,setIssueBody]=useState("");
   const [profile,setProfile]=useState(()=>JSON.parse(localStorage.getItem("gutheb-profile")||"null")||{username:"",bio:"",location:"",website:"",avatar:""});
@@ -62,6 +65,22 @@ function App(){
   }
   async function logout(){try{await fetch("/api/account",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"logout"})});}catch{}setUser(null);localStorage.removeItem("gutheb-user");localStorage.removeItem("gutheb-profile");setRepos([]);go("home");}
   async function register(e){e.preventDefault();try{const res=await fetch("/api/account",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"register",username:authForm.name,email:authForm.email,password:authForm.password})});const d=await res.json();if(!res.ok)throw new Error(d.error||"Registration failed");setUser(d.user);setProfile({...d.profile,username:d.user.name});localStorage.setItem("gutheb-user",JSON.stringify(d.user));localStorage.setItem("gutheb-profile",JSON.stringify(d.profile||{}));setRepos(d.repos||[]);go("home");}catch(err){flash(err.message);}}
+  async function importGithubRepo(e){
+    e.preventDefault();
+    if(!importForm.url.trim())return flash("GitHub repository URL is required");
+    setImporting(true);
+    try{
+      const res=await fetch("/api/github-import",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:importForm.url.trim(),branch:importForm.branch.trim()})});
+      const d=await res.json();if(!res.ok)throw new Error(d.error||"GitHub import failed");
+      const source=d.repository||{};
+      const name=(importForm.name.trim()||source.name||"imported-repository").replace(/^\/+|\/+$/g,"");
+      if(!/^[A-Za-z0-9._-]+$/.test(name))throw new Error("Repository name can only contain letters, numbers, dots, underscores and hyphens.");
+      const r={owner:user.name,name,visibility:"Public",language:source.language||"",stars:source.stars||0,forks:source.forks||0,updated:"just now",description:source.description||"",license:source.license||"MIT",files:source.files||{},folders:source.folders||[],source:"github",sourceUrl:source.sourceUrl||importForm.url.trim(),defaultBranch:source.defaultBranch||"main"};
+      const save=await fetch("/api/account",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"repo",repo:r})});
+      const sd=await save.json();if(!save.ok)throw new Error(sd.error||"Could not save imported repository");
+      const saved={...r,id:sd.id};setRepos(x=>[saved,...x]);setSelectedRepo(saved);setImportOpen(false);setImportForm({url:"",branch:"",name:""});flash("GitHub repository imported into GutHeb");go("repos");
+    }catch(err){flash(err.message)}finally{setImporting(false)}
+  }
   async function createRepo(e){
     e.preventDefault();
     if(!newRepo.name.trim()) return flash("Repository name is required");
@@ -209,6 +228,7 @@ function App(){
         {page==="notifications"&&<Notifications/>}
         {page==="profile"&&<Profile user={user} profile={profile} setProfile={setProfile} save={saveProfile} repos={repos.filter(r=>!r.owner||r.owner===user.name)} pinned={pinned} togglePin={togglePin}/>}
         {page==="settings"&&<Settings settings={settings} setSettings={setSettings} user={user}/>}
+        {importOpen&&<ImportRepoModal open={importOpen} onClose={()=>!importing&&setImportOpen(false)} onSubmit={importGithubRepo} form={importForm} setForm={setImportForm} loading={importing}/>}
         {routeRepo&&selectedRepo&&<Repo repo={selectedRepo} tab={repoTab} setTab={setRepoTab} tree={tree} file={file} openFile={openFile} go={go} packages={packages} user={user} repoBranches={repoBranches} createBranch={createBranch} selectBranch={selectBranch} downloadRepoZip={downloadRepoZip} openInWorkers={openInWorkers} flash={flash} currentPath={routePath} routeKind={routeKind}/>}
       </main>
       {aiOpen&&<AIChat messages={aiMessages} input={aiInput} setInput={setAiInput} onSubmit={askAI} close={()=>setAiOpen(false)}/>} 
@@ -240,7 +260,9 @@ function Home({user,repos,openRepo,go,pinned,togglePin}){return <Page title={"Go
   <Panel title="Quick start"><div className="quick"><button onClick={()=>go("new")}>Create a repository</button><button onClick={()=>go("issues")}>Create an issue</button><button onClick={()=>go("profile")}>Edit your profile</button><button onClick={()=>go("settings")}>Account settings</button></div></Panel>
 </Page>}
 
-function Repos({repos,openRepo,go,pinned,togglePin}){return <Page title="Repositories" subtitle="Create, manage, and explore your repositories." action={<button className="primary" onClick={()=>go("new")}>New</button>}><div className="repo-list">{repos.map(r=><RepoCard key={r.name} r={r} open={openRepo} pinned={pinned.includes(r.name)} pin={()=>togglePin(r.name)}/>)}</div></Page>}
+function Repos({repos,openRepo,go,pinned,togglePin,onImport}){return <Page title="Repositories" subtitle="Create, manage, and explore your repositories." action={<div className="repoPageActions"><button onClick={onImport}>↓ Import repository</button><button className="primary" onClick={()=>go("new")}>New</button></div>}><div className="repo-list">{repos.map(r=><RepoCard key={r.name} r={r} open={openRepo} pinned={pinned.includes(r.name)} pin={()=>togglePin(r.name)}/>)}</div></Page>}
+
+function ImportRepoModal({open,onClose,onSubmit,form,setForm,loading}){if(!open)return null;return <div className="importModalBackdrop" onClick={onClose}><section className="importModal" onClick={e=>e.stopPropagation()}><div className="importModalHead"><div><span className="marketEyebrow">GUTHEB IMPORT</span><h2>Import a repository</h2><p>Copy a public repository from GitHub into your GutHeb account.</p></div><button onClick={onClose}>×</button></div><form onSubmit={onSubmit}><label>GitHub repository URL<input autoFocus value={form.url} onChange={e=>setForm({...form,url:e.target.value})} placeholder="https://github.com/owner/repository" required/></label><div className="importGrid"><label>Branch <span className="muted">(optional)</span><input value={form.branch} onChange={e=>setForm({...form,branch:e.target.value})} placeholder="default branch"/></label><label>GutHeb repository name <span className="muted">(optional)</span><input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="same as GitHub"/></label></div><div className="importNote">Public repositories only. Files are copied into GutHeb, including folders and README content.</div><div className="importModalActions"><button type="button" onClick={onClose}>Cancel</button><button className="primary" disabled={loading}>{loading?"Importing…":"Import repository"}</button></div></form></section></div>}
 
 function NewRepo({form,setForm,onSubmit}){const user=JSON.parse(localStorage.getItem("gutheb-user")||"{}");return <Page title="Create a new repository" subtitle="A repository contains all of your project's files, history, and collaboration tools."><form className="panel form" onSubmit={onSubmit}><label>Owner<input value={user.name||"user"} disabled/></label><label>Repository name<input autoFocus required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="my-project"/></label><label>Description <span className="muted">(optional)</span><textarea value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></label><label>Visibility<select value={form.visibility} onChange={e=>setForm({...form,visibility:e.target.value})}><option>Public</option><option>Private</option></select></label><button className="primary" type="submit">Create repository</button></form></Page>}
 
