@@ -6,6 +6,7 @@ if(!command){
   console.error("usage: gut clone -<repo>");
   console.error("       gut pash -g clone archive <archive>");
   console.error("       gut pash -g create archive <archive> -& pash directory ./<carpet>");
+  console.error("       gut pash -g delete   # clear the current Codespace workspace only");
   console.error("       gut delete -<repo|archivo|raw|codespace|action|carpeta> <target>");
   process.exit(1);
 }
