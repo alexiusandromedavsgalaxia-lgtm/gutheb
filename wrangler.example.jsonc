@@ -8,6 +8,6 @@
     {"binding":"ARCHIVE_DB","database_name":"archivecontent","database_id":"REPLACE_WITH_ARCHIVECONTENT_D1_ID"},
     {"binding":"REPOZIP_DB","database_name":"zip","database_id":"REPLACE_WITH_ZIP_D1_ID"},
     {"binding":"WORKERS_PAGES_DB","database_name":"workers-pages","database_id":"REPLACE_WITH_WORKERS_PAGES_D1_ID"},
-    {"binding":"ACTIONS_DB","database_name":"guthebactions","database_id":"REPLACE_WITH_GUTHEBACTIONS_D1_ID"}
+    {"binding":"actions","database_name":"guthebactions","database_id":"REPLACE_WITH_GUTHEBACTIONS_D1_ID"}
   ]
 }
