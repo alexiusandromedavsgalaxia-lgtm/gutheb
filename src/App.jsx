@@ -218,7 +218,7 @@ function App(){
         {page==="actions"&&<Actions repo={selectedRepo} flash={flash}/>}
         {page==="projects"&&<Projects/>}
         {page==="discussions"&&<Discussions/>}
-        {page==="codespaces"&&<Codespaces/>}
+        {page==="codespaces"&&<Codespaces repos={repos.filter(r=>!r.owner||r.owner===user.name)} user={user} saveLocalRepo={saveLocalRepo} flash={flash}/>}
         {page==="marketplace"&&<Marketplace repos={repos} setRepos={setRepos} selectedRepo={selectedRepo} saveLocalRepo={saveLocalRepo} user={user} flash={flash}/>}
         {page==="explore"&&<Explore/>}
         {page==="notifications"&&<Notifications/>}
@@ -320,7 +320,36 @@ function Actions({repo,flash}){
 }
 function Projects(){return <Page title="Projects" subtitle="Track work with tables, boards, and roadmaps."><div className="board"><div>Todo</div><div>In progress</div><div>Done</div><article>Plan next release</article><article>Build issue workflow</article><article>Ship first version</article></div></Page>}
 function Discussions(){return <Page title="Discussions" subtitle="Community conversations and long-form collaboration."><Panel title="Recent discussions"><Activity text="Welcome to the community"/><Activity text="Share what you are building"/><Activity text="Feature ideas"/></Panel></Page>}
-function Codespaces(){return <Page title="Codespaces" subtitle="Cloud development environments for your repositories."><Panel title="Your codespaces"><div className="empty">No codespaces yet.<br/><button className="primary">Create a codespace</button></div></Panel></Page>}
+function Codespaces({repos,user,saveLocalRepo,flash}){
+  const [repoName,setRepoName]=useState(()=>localStorage.getItem("gutheb-codespace-repo")||repos[0]?.name||"");
+  const [open,setOpen]=useState(()=>localStorage.getItem("gutheb-codespace-open")==="1");
+  const [path,setPath]=useState(()=>localStorage.getItem("gutheb-codespace-file")||"");
+  const [draft,setDraft]=useState("");
+  const [terminal,setTerminal]=useState("");
+  const [cmd,setCmd]=useState("");
+  const repo=repos.find(r=>r.name===repoName)||null;
+  const files=repo?.files||{};
+  useEffect(()=>{if(path&&files[path]!==undefined)setDraft(String(files[path]||""));},[path,repoName]);
+  const start=()=>{if(!repo)return flash("Select a repository first");localStorage.setItem("gutheb-codespace-repo",repo.name);localStorage.setItem("gutheb-codespace-open","1");setOpen(true);const first=Object.keys(repo.files||{})[0]||"";setPath(first);localStorage.setItem("gutheb-codespace-file",first);};
+  const save=()=>{if(!repo||!path)return;saveLocalRepo({...repo,files:{...(repo.files||{}),[path]:draft}});flash("Codespace changes saved");};
+  const run=()=>{const c=cmd.trim();if(!c)return;let out="";
+    if(c==="pwd")out="/workspace/"+(repo?.name||"repository");
+    else if(c==="ls"||c==="ls -la")out=Object.keys(files).join("\\n")||"(empty)";
+    else if(c==="clear"){setTerminal("");setCmd("");return;}
+    else if(c==="git status")out="On branch main\\nChanges are shown in the editor.";
+    else if(c.startsWith("cat ")){const p=c.slice(4).trim();out=files[p]!==undefined?String(files[p]):"cat: "+p+": No such file";}
+    else out="GutHeb Codespaces: command available in browser workspace only. Linux execution is not connected yet.";
+    setTerminal(x=>x+"$ "+c+"\\n"+out+"\\n");setCmd("");
+  };
+  if(!open)return <Page title="Codespaces" subtitle="Cloud development environments for your repositories."><Panel title="Create a codespace"><div className="codespaceCreate"><div><h2>GutHeb Codespaces</h2><p>Open a repository in a persistent development workspace with files, editor, terminal and preview.</p></div><label>Repository<select value={repoName} onChange={e=>setRepoName(e.target.value)}>{repos.map(r=><option key={r.name} value={r.name}>{r.owner||user.name}/{r.name}</option>)}</select></label><button className="primary" onClick={start} disabled={!repo}>Create codespace</button></div></Panel></Page>;
+  return <Page title="Codespaces" subtitle={repo?(repo.owner||user.name)+"/"+repo.name:"Workspace"} action={<button onClick={()=>{setOpen(false);localStorage.setItem("gutheb-codespace-open","0")}}>Back</button>}>
+    <div className="codespaceShell">
+      <aside className="codespaceFiles"><div className="codespacePanelHead">EXPLORER</div>{Object.keys(files).map(p=><button className={path===p?"active":""} key={p} onClick={()=>{setPath(p);localStorage.setItem("gutheb-codespace-file",p)}}>◇ {p}</button>)}{!Object.keys(files).length&&<span className="muted">No files</span>}</aside>
+      <section className="codespaceCenter"><div className="codespaceTabs">{path||"Welcome"}{path&&<button onClick={save}>Save</button>}</div>{path?<textarea className="codespaceEditor" value={draft} onChange={e=>setDraft(e.target.value)} spellCheck={false}/>:<div className="codespaceWelcome"><h2>Welcome to GutHeb Codespaces</h2><p>Select a file from Explorer to start editing.</p></div>}<div className="codespaceTerminal"><div className="codespacePanelHead">TERMINAL</div><pre>{terminal||"GutHeb terminal ready. Try: pwd, ls, cat README.md, git status"}</pre><form onSubmit={e=>{e.preventDefault();run()}}><span>$</span><input value={cmd} onChange={e=>setCmd(e.target.value)} placeholder="Enter command"/></form></div></section>
+      <aside className="codespacePreview"><div className="codespacePanelHead">PREVIEW</div>{path?.toLowerCase().endsWith(".html")?<iframe title="GutHeb preview" srcDoc={draft}/>:<div className="codespacePreviewEmpty"><b>Preview</b><span>Open an HTML file to preview it here.</span></div>}</aside>
+    </div>
+  </Page>
+}
 function Marketplace({repos,setRepos,selectedRepo,saveLocalRepo,user,flash}){
   const [tab,setTab]=useState("actions");
   const [q,setQ]=useState("");
