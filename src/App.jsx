@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-const OWNER = "alexiusandromedavsgalaxia-lgtm";
 const API = "https://api.github.com";
 
 const seedRepos = [];
@@ -61,21 +60,21 @@ function App(){
   function createRepo(e){
     e.preventDefault();
     if(!newRepo.name.trim()) return flash("Repository name is required");
-    const r={name:newRepo.name.trim(),visibility:newRepo.visibility,language:"",stars:0,forks:0,updated:"just now",description:newRepo.description,license:"MIT",readme:true,packages:[]};
+    const r={owner:user.name,name:newRepo.name.trim(),visibility:newRepo.visibility,language:"",stars:0,forks:0,updated:"just now",description:newRepo.description,license:"MIT",readme:true,packages:[]};
     setRepos(x=>[r,...x]); setNewRepo({name:"",description:"",visibility:"Public"}); flash("Repository created"); go("repos");
   }
   async function openRepo(r){
     setSelectedRepo(r); setRepoTab("code"); setFile(null); setTree([]);
     go("repo/"+r.name);
     try{
-      const res=await fetch(API+"/repos/"+OWNER+"/"+r.name+"/git/trees/main?recursive=1");
+      const res=await fetch(API+"/repos/"+encodeURIComponent(r.owner||user.name)+"/"+encodeURIComponent(r.name)+"/git/trees/main?recursive=1");
       if(res.ok){const data=await res.json();setTree((data.tree||[]).filter(x=>x.type==="blob"||x.type==="tree"));}
     }catch{}
   }
   async function openFile(path){
     if(!selectedRepo)return;
     try{
-      const res=await fetch(API+"/repos/"+OWNER+"/"+selectedRepo.name+"/contents/"+path+"?ref=main");
+      const res=await fetch(API+"/repos/"+encodeURIComponent(selectedRepo.owner||user.name)+"/"+encodeURIComponent(selectedRepo.name)+"/contents/"+path+"?ref=main");
       if(!res.ok) throw new Error();
       const data=await res.json();
       const raw=atob((data.content||"").replaceAll("\\n",""));
@@ -123,7 +122,7 @@ function App(){
         <Nav icon="/gutheb-icons/marketplace.svg" text="Marketplace" page="marketplace" go={go}/><button className="navitem aiNav" onClick={()=>setAiOpen(true)}><span className="navicon"><img src="/gutheb-icons/ai.svg" alt="" /></span> GutHeb AI</button>
         <div className="navsep"/>
         <small>Repositories</small>
-        {repos.slice(0,8).map(r=><button className="repo-nav" key={r.name} onClick={()=>openRepo(r)}><span className="dot"/> {r.name}</button>)}
+        {repos.filter(r=>!r.owner||r.owner===user.name).slice(0,8).map(r=><button className="repo-nav" key={(r.owner||user.name)+"/"+r.name} onClick={()=>openRepo(r)}><span className="dot"/> {r.name}</button>)}
         <button className="repo-nav" onClick={()=>go("repos")}>View all repositories →</button>
         <div className="navbottom">
           <Nav icon="⚙" text="Settings" page="settings" go={go}/>
@@ -133,8 +132,8 @@ function App(){
 
       <main className="main">
         {notice&&<div className="notice">{notice}</div>}
-        {page==="home"&&<Home user={user} repos={filteredRepos} openRepo={openRepo} go={go} pinned={pinned} togglePin={togglePin}/>}
-        {page==="repos"&&<Repos repos={filteredRepos} openRepo={openRepo} go={go} pinned={pinned} togglePin={togglePin}/>}
+        {page==="home"&&<Home user={user} repos={filteredRepos.filter(r=>!r.owner||r.owner===user.name)} openRepo={openRepo} go={go} pinned={pinned} togglePin={togglePin}/>}
+        {page==="repos"&&<Repos repos={filteredRepos.filter(r=>!r.owner||r.owner===user.name)} openRepo={openRepo} go={go} pinned={pinned} togglePin={togglePin}/>}
         {page==="new"&&<NewRepo form={newRepo} setForm={setNewRepo} onSubmit={createRepo}/>}
         {page==="issues"&&<Issues issues={issues} user={user} title={issueTitle} setTitle={setIssueTitle} body={issueBody} setBody={setIssueBody} onSubmit={createIssue}/>}
         {page==="pulls"&&<Pulls prs={prs} setPRs={setPRs} user={user}/>}
@@ -145,7 +144,7 @@ function App(){
         {page==="marketplace"&&<Marketplace/>}
         {page==="explore"&&<Explore/>}
         {page==="notifications"&&<Notifications/>}
-        {page==="profile"&&<Profile user={user} profile={profile} setProfile={setProfile} save={saveProfile} repos={repos} pinned={pinned} togglePin={togglePin}/>}
+        {page==="profile"&&<Profile user={user} profile={profile} setProfile={setProfile} save={saveProfile} repos={repos.filter(r=>!r.owner||r.owner===user.name)} pinned={pinned} togglePin={togglePin}/>}
         {page==="settings"&&<Settings settings={settings} setSettings={setSettings} user={user}/>}
         {routeRepo&&selectedRepo&&<Repo repo={selectedRepo} tab={repoTab} setTab={setRepoTab} tree={tree} file={file} openFile={openFile} go={go} packages={packages}/>}
       </main>
@@ -199,12 +198,12 @@ function avatarFile(e){const file=e.target.files?.[0];if(!file)return;if(file.si
 function Profile({user,profile,setProfile,save,repos,pinned,togglePin}){return <Page title={user.name} subtitle={user.email}><div className="profileHero"><div className="avatar">{profile.avatar?<img src={profile.avatar} alt="Profile"/>:<span>{user.name.slice(0,1).toUpperCase()}</span>}</div><div><h2>{user.name}</h2><p>{profile.bio||"Add a short bio to your profile."}</p></div></div><form className="panel form" onSubmit={save}><label>Profile photo<input type="file" accept="image/*" onChange={avatarFile}/></label><label>Bio<textarea value={profile.bio} onChange={e=>setProfile({...profile,bio:e.target.value})}/></label><label>Location<input value={profile.location} onChange={e=>setProfile({...profile,location:e.target.value})}/></label><label>Website<input value={profile.website} onChange={e=>setProfile({...profile,website:e.target.value})}/></label><button className="primary">Save profile</button></form><Panel title="Repositories">{repos.map(r=><RepoMini r={r} key={r.name} pinned={pinned.includes(r.name)} pin={()=>togglePin(r.name)}/>)}</Panel></Page>}
 function Settings({settings,setSettings,user}){return <Page title="Settings" subtitle="Manage your GutHeb account and preferences."><Panel title="Account"><div className="setting"><span><b>Username</b><small>{user.name}</small></span><button>Change</button></div><div className="setting"><span><b>Email</b><small>{user.email}</small></span><button>Manage</button></div></Panel><Panel title="Preferences"><div className="setting"><span><b>Theme</b><small>Dark developer theme</small></span><select value={settings.theme} onChange={e=>setSettings({...settings,theme:e.target.value})}><option>dark</option><option>light</option></select></div><div className="setting"><span><b>Email notifications</b><small>Receive product updates</small></span><input type="checkbox" checked={settings.email} onChange={e=>setSettings({...settings,email:e.target.checked})}/></div></Panel><Panel title="Danger zone"><button className="danger">Delete account</button></Panel></Page>}
 
-function Repo({repo,tab,setTab,tree,file,openFile,go,packages}){return <Page title={repo.name} subtitle={repo.description} action={<div><button>☆ Star</button> <button>Fork</button></div>}><div className="repoTabs">{["code","issues","pulls","actions","projects","security","packages","insights"].map(x=><button className={tab===x?"sel":""} onClick={()=>setTab(x)} key={x}>{x[0].toUpperCase()+x.slice(1)}</button>)}</div>{tab==="code"&&<div className="repoCode"><div className="filetree">{tree.length?tree.map(x=><button key={x.path} onClick={()=>x.type==="blob"&&openFile(x.path)}>{x.type==="tree"?"📁":"📄"} {x.path}</button>):<p className="muted">Repository tree loads from the public GitHub API when available.</p>}</div>{file?<pre className="fileview"><code>{file.content}</code></pre>:<div className="empty">Select a file to view its source.</div>}</div>}{tab==="packages"&&<Panel title="Packages"><div className="empty">{packages.length?packages.join(", "):"No packages published yet."}</div></Panel>}{tab!=="code"&&tab!=="packages"&&<Panel title={tab==="issues"?"Issues":tab==="pulls"?"Pull requests":tab}><div className="empty">This {tab} workspace is ready for repository-specific data.</div></Panel>}{tab==="code"&&<RepoMeta repo={repo} tree={tree}/>}</Page>}
+function Repo({repo,tab,setTab,tree,file,openFile,go,packages}){return <Page title={(repo.owner||"user")+"/"+repo.name} subtitle={repo.description} action={<div><button>☆ Star</button> <button>Fork</button></div>}><div className="repoTabs">{["code","issues","pulls","actions","projects","security","packages","insights"].map(x=><button className={tab===x?"sel":""} onClick={()=>setTab(x)} key={x}>{x[0].toUpperCase()+x.slice(1)}</button>)}</div>{tab==="code"&&<div className="repoCode"><div className="filetree">{tree.length?tree.map(x=><button key={x.path} onClick={()=>x.type==="blob"&&openFile(x.path)}>{x.type==="tree"?"📁":"📄"} {x.path}</button>):<p className="muted">Repository tree loads from the public GitHub API when available.</p>}</div>{file?<pre className="fileview"><code>{file.content}</code></pre>:<div className="empty">Select a file to view its source.</div>}</div>}{tab==="packages"&&<Panel title="Packages"><div className="empty">{packages.length?packages.join(", "):"No packages published yet."}</div></Panel>}{tab!=="code"&&tab!=="packages"&&<Panel title={tab==="issues"?"Issues":tab==="pulls"?"Pull requests":tab}><div className="empty">This {tab} workspace is ready for repository-specific data.</div></Panel>}{tab==="code"&&<RepoMeta repo={repo} tree={tree}/>}</Page>}
 
 function Page({title,subtitle,action,children}){return <section className="page"><div className="pagehead"><div><h1>{title}</h1>{subtitle&&<p>{subtitle}</p>}</div>{action}</div>{children}</section>}
 function Panel({title,action,children}){return <section className="panel"><div className="panelhead"><h2>{title}</h2>{action}</div>{children}</section>}
 function RepoMini({r,open,pinned,pin}){return <div className="repomini"><button className="repoOpen" onClick={()=>open&&open(r)}><span className="repo-name">◉ {r.name}</span><span className="muted">{r.description||"No description"}</span><span className="muted">{r.language||"Code"} · ☆ {r.stars||0}</span></button><button onClick={pin}>{pinned?"★":"☆"}</button></div>}
-function RepoCard({r,open,pinned,pin}){return <div className="repocard"><div className="repoCardTop"><button onClick={()=>open(r)}><h3>{r.name}</h3></button><button onClick={pin}>{pinned?"★ Pinned":"☆ Pin"}</button></div><p>{r.description||"No description provided."}</p><span className="muted">{r.visibility} · {r.language||"Code"} · ☆ {r.stars||0} · Forks {r.forks||0}</span><div className="repoMeta"><span>📄 README</span><span>⚖ {r.license||"No license"}</span><span>▣ Packages</span></div></div>}
+function RepoCard({r,open,pinned,pin}){return <div className="repocard"><div className="repoCardTop"><button onClick={()=>open(r)}><h3>{(r.owner||"user")+"/"+r.name}</h3></button><button onClick={pin}>{pinned?"★ Pinned":"☆ Pin"}</button></div><p>{r.description||"No description provided."}</p><span className="muted">{r.visibility} · {r.language||"Code"} · ☆ {r.stars||0} · Forks {r.forks||0}</span><div className="repoMeta"><span>📄 README</span><span>⚖ {r.license||"No license"}</span><span>▣ Packages</span></div></div>}
 function Activity({text}){return <div className="activity"><span>●</span><span>{text}</span></div>}
 
 export default App;
