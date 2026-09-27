@@ -398,92 +398,84 @@ function Settings({settings,setSettings,user}){return <Page title="Settings" sub
 
 function Repo({repo,tab,setTab,tree,file,openFile,go,packages,user,repoBranches,createBranch,selectBranch,downloadRepoZip,openInWorkers,flash}){
   const [draft,setDraft]=useState(file?.content||"");
+  const [menu,setMenu]=useState("");
   useEffect(()=>setDraft(file?.content||""),[file?.path]);
   const files=tree||[];
   const key=(repo.owner||user.name)+"/"+repo.name, branches=repoBranches[key]||["main"];
   const owner=repo.owner===user.name;
+  const branch=repo.currentBranch||"main";
   const visibility=(repo.visibility||"Public").toLowerCase();
-  const fileCount=files.length;
   const readme=repo.files?.["README.md"]||"";
-  const latest="Initial commit";
-  const age="just now";
+  const allPaths=Object.keys(repo.files||{});
+  const routeParts=location.hash.replace(/^#\\/?/,"").split("/");
+  const pathStart=routeParts.indexOf("tree")>=0?routeParts.indexOf("tree")+2:routeParts.indexOf("blob")>=0?routeParts.indexOf("blob")+2:-1;
+  const currentPath=pathStart>=0?decodeURIComponent(routeParts.slice(pathStart).join("/")):"";
+  const prefix=currentPath?currentPath+"/":"";
+  const directFolders=[...new Set(allPaths.map(p=>p.startsWith(prefix)?p.slice(prefix.length).split("/")[0]:"").filter(Boolean).filter(x=>x.includes(".")===false||allPaths.some(p=>p.startsWith(prefix+x+"/"))))];
+  const directFiles=allPaths.filter(p=>p.startsWith(prefix)&&!p.slice(prefix.length).includes("/"));
+  const goTree=(path="")=>go("repo/"+encodeURIComponent(repo.name)+"/tree/"+encodeURIComponent(branch)+(path?"/"+path.split("/").map(encodeURIComponent).join("/"):""));
+  const goBlob=path=>{openFile(path);go("repo/"+encodeURIComponent(repo.name)+"/blob/"+encodeURIComponent(branch)+"/"+path.split("/").map(encodeURIComponent).join("/"));};
+  const addNewFile=()=>{
+    if(!owner)return flash("Only the repository owner can edit this repository");
+    const base=currentPath?currentPath+"/":"";
+    const p=prompt("Create new file",base+"new-file.txt");
+    if(p?.trim())window.dispatchEvent(new CustomEvent("gutheb:new-file",{detail:p.trim()}));
+    setMenu("");
+  };
+  const upload=()=>{
+    if(!owner)return flash("Only the repository owner can edit this repository");
+    const input=document.createElement("input");input.type="file";input.multiple=true;
+    input.onchange=async()=>{
+      for(const picked of Array.from(input.files||[])){
+        const path=(currentPath?currentPath+"/":"")+picked.name;
+        const content=await picked.text().catch(()=> "");
+        window.dispatchEvent(new CustomEvent("gutheb:new-file",{detail:path}));
+        setTimeout(()=>window.dispatchEvent(new CustomEvent("gutheb:set-file-content",{detail:{path,content}})),50);
+      }
+      setMenu("");flash("Files uploaded");
+    };
+    input.click();
+  };
+  const copyClone=()=>{
+    const url=location.origin+"/"+(repo.owner||user.name)+"/"+repo.name+".git";
+    navigator.clipboard?.writeText(url).then(()=>flash("Clone URL copied")).catch(()=>flash(url));
+    setMenu("");
+  };
   return <section className="repoPage">
     <div className="repoTitleBar">
-      <div className="repoTitle">
-        <div className="repoCrumb"><button onClick={()=>go("profile")}>{repo.owner||"user"}</button><span>/</span><strong>{repo.name}</strong><span className={"visibility "+visibility}>{visibility}</span></div>
-        {repo.description&&<p>{repo.description}</p>}
-      </div>
-      <div className="repoHeaderActions">
-        <button>◉ <span>Watch</span> <b>0</b></button>
-        <button>⑂ <span>Fork</span> <b>{repo.forks||0}</b></button>
-        <button>☆ <span>Star</span> <b>{repo.stars||0}</b></button>
-      </div>
+      <div className="repoTitle"><div className="repoCrumb"><button onClick={()=>go("profile")}>{repo.owner||"user"}</button><span>/</span><strong>{repo.name}</strong><span className={"visibility "+visibility}>{visibility}</span></div>{repo.description&&<p>{repo.description}</p>}</div>
+      <div className="repoHeaderActions"><button>◉ <span>Watch</span> <b>0</b></button><button>⑂ <span>Fork</span> <b>{repo.forks||0}</b></button><button>☆ <span>Star</span> <b>{repo.stars||0}</b></button></div>
     </div>
-
-    <nav className="repoTabs">
-      {["code","issues","pulls","actions","projects","wiki","security","insights"].map(x=><button className={tab===x?"sel":""} onClick={()=>setTab(x)} key={x}>{x==="pulls"?"Pull requests":x[0].toUpperCase()+x.slice(1)}</button>)}
-      {owner&&<button className="repoSettingsTab" onClick={()=>setTab("settings")}>⚙ Settings</button>}
-    </nav>
-
-    {tab==="code"&&<div className="repoGrid">
-      <main className="repoCode">
-        <div className="repoToolbar">
-          <div className="repoToolbarLeft">
-            <label className="branchSelect">⑂ <select value={repo.currentBranch||"main"} onChange={e=>selectBranch(e.target.value)}>{branches.map(b=><option key={b}>{b}</option>)}</select></label>
-            <button className="countButton">{branches.length} {branches.length===1?"branch":"branches"}</button>
-            <button className="countButton">0 tags</button>
-          </div>
-          <div className="repoToolbarRight">
-            <button className="goFile">⌕ Go to file</button>
-            <button onClick={()=>{const p=prompt("File path","src/index.js");if(p&&owner)window.dispatchEvent(new CustomEvent("gutheb:new-file",{detail:p}));else if(p)flash("Only the repository owner can edit this repository")}}>Add file ▾</button>
-            <button className="codeGreen">Code ▾</button>
-          </div>
+    <nav className="repoTabs">{["code","issues","pulls","actions","projects","wiki","security","insights"].map(x=><button className={tab===x?"sel":""} onClick={()=>{setMenu("");setTab(x)}} key={x}>{x==="pulls"?"Pull requests":x[0].toUpperCase()+x.slice(1)}</button>)}{owner&&<button className="repoSettingsTab" onClick={()=>setTab("settings")}>⚙ Settings</button>}</nav>
+    {tab==="code"&&<div className="repoGrid"><main className="repoCode">
+      <div className="repoToolbar"><div className="repoToolbarLeft">
+        <label className="branchSelect">⑂ <select value={branch} onChange={e=>{selectBranch(e.target.value);goTree("")}}>{branches.map(b=><option key={b}>{b}</option>)}</select></label>
+        <button className="countButton">{branches.length} {branches.length===1?"branch":"branches"}</button><button className="countButton">0 tags</button>
+      </div><div className="repoToolbarRight">
+        <button className="goFile" onClick={()=>{const p=prompt("Go to file",currentPath||"");if(!p?.trim())return;const path=p.trim().replace(/^\\/+|\\/+$/g,"");if(repo.files?.[path]!==undefined)goBlob(path);else flash("File not found")}}>⌕ Go to file</button>
+        <div className="repoDropdown"><button onClick={()=>setMenu(menu==="add"?"":"add")}>Add file ▾</button>{menu==="add"&&<div className="repoMenu">
+          <button onClick={addNewFile}>＋ Create new file</button>
+          <button onClick={upload}>↑ Upload files</button>
+        </div>}</div>
+        <div className="repoDropdown"><button className="codeGreen" onClick={()=>setMenu(menu==="code"?"":"code")}>Code ▾</button>{menu==="code"&&<div className="repoMenu repoCodeMenu">
+          <div className="repoMenuTitle">Clone</div><div className="cloneRow"><span>HTTPS</span><button onClick={copyClone}>Copy</button></div>
+          <code>{location.origin}/{repo.owner||user.name}/{repo.name}.git</code>
+          <button onClick={()=>{downloadRepoZip(repo);setMenu("")}}>↓ Download ZIP</button>
+          <button onClick={()=>{openInWorkers(repo);setMenu("")}}>▣ Open in GutHeb Codespaces</button>
+        </div>}</div>
+      </div></div>
+      <div className="repoBreadcrumbs"><button onClick={()=>goTree("")}>{repo.name}</button>{currentPath.split("/").filter(Boolean).map((part,i)=><React.Fragment key={part+i}><span>/</span><button onClick={()=>goTree(currentPath.split("/").slice(0,i+1).join("/"))}>{part}</button></React.Fragment>)}</div>
+      <div className="repoFileCard"><div className="repoCommitHead"><div className="commitAuthor"><span className="miniAvatar">{(repo.owner||"U")[0].toUpperCase()}</span><b>{repo.owner||"user"}</b><span>Initial commit</span></div><div className="commitMeta">○ just now <b>1 commit</b></div></div>
+        <div className="repoFilesList">
+          {currentPath&&<div className="repoFileRow repoParentRow"><button onClick={()=>goTree(currentPath.split("/").slice(0,-1).join("/"))}><span className="fileIcon">↩</span><b>..</b></button><span>Parent directory</span><time></time></div>}
+          {directFolders.map(folder=><div className="repoFileRow" key={"folder:"+folder}><button onClick={()=>goTree(currentPath?(currentPath+"/"+folder):folder)}><span className="fileIcon folderIcon">▰</span><span>{folder}</span></button><span>Initial commit</span><time>just now</time></div>)}
+          {directFiles.map(path=><div className="repoFileRow" key={path}><button onClick={()=>goBlob(path)}><span className="fileIcon">{path.endsWith(".md")?"▤":"◇"}</span><span>{path.slice(prefix.length)}</span></button><span>Initial commit</span><time>just now</time></div>)}
+          {!directFiles.length&&!directFolders.length&&<div className="repoEmptyFiles">This directory is empty.</div>}
         </div>
-
-        <div className="repoFileCard">
-          <div className="repoCommitHead">
-            <div className="commitAuthor"><span className="miniAvatar">{(repo.owner||"U")[0].toUpperCase()}</span><b>{repo.owner||"user"}</b><span>{latest}</span></div>
-            <div className="commitMeta">○ just now <b>1 commit</b></div>
-          </div>
-          <div className="repoFilesList">
-            {foldersFromRepo(repo).map(folder=><div className="repoFileRow" key={"folder:"+folder}>
-              <button onClick={()=>flash("Folder navigation coming next")}><span className="fileIcon folderIcon">▰</span><b>{folder}</b></button><span>{latest}</span><time>{age}</time>
-            </div>)}
-            {files.map(x=><div className="repoFileRow" key={x.path}>
-              <button onClick={()=>openFile(x.path)}><span className="fileIcon">{x.path.endsWith(".md")?"▤":"◇"}</span><span>{x.path}</span></button><span>{latest}</span><time>{age}</time>
-            </div>)}
-            {!fileCount&&!foldersFromRepo(repo).length&&<div className="repoEmptyFiles">This repository is empty.</div>}
-          </div>
-        </div>
-
-        {file ? <div className="editorCard repoEditorCard">
-          <div className="editorHead"><span>◇ {file.path}</span><span className="muted">{owner?"Editable by owner":"Read only"}</span></div>
-          <textarea readOnly={!owner} className="fileeditor" value={draft} onChange={e=>{setDraft(e.target.value);file.content=e.target.value}} spellCheck={false}/>
-          {owner&&<div className="editorFooter"><button className="primary" onClick={()=>window.dispatchEvent(new CustomEvent("gutheb:save-file"))}>Save changes</button></div>}
-        </div> : <div className="readmeCard githubReadme">
-          <div className="readmeHead"><span>▤ README.md</span><span className="muted">Edit</span></div>
-          <div className="readmeBody">
-            <h1>{repo.name}</h1>
-            {readme.replace(/^# .*?\n?/,"").trim()?<p>{readme.replace(/^# .*?\n?/,"").trim()}</p>:<p>{repo.description||"No README description yet."}</p>}
-          </div>
-        </div>}
-      </main>
-
-      <aside className="repoAside githubAside">
-        <section><h3>About</h3><p>{repo.description||"No description, website, or topics provided."}</p>{repo.website&&<a href={repo.website} target="_blank" rel="noreferrer">↗ Website</a>}<div className="asideLink">◇ Readme</div><div className="asideLink">◉ Activity</div></section>
-        <section><h3>Releases</h3><p className="muted">No releases published</p><a>Create a new release</a></section>
-        <section><h3>Packages</h3><p className="muted">No packages published</p><a>Publish your first package</a></section>
-        <section><h3>Contributors</h3><div className="contributor"><span className="miniAvatar">{(repo.owner||"U")[0].toUpperCase()}</span><b>{repo.owner||"user"}</b><small>1 commit</small></div></section>
-        <section><h3>Languages</h3><div className="languageBar"><span style={{width:"100%"}}/></div><p><b>● {repo.language||"Code"}</b> <span className="muted">100%</span></p></section>
-      </aside>
-    </div>}
-
-    {tab!=="code"&&<div className="repoSubpage">
-      <div className="repoSubpageHead"><h2>{tab==="pulls"?"Pull requests":tab[0].toUpperCase()+tab.slice(1)}</h2><button className="codeGreen" onClick={()=>setTab("code")}>← Code</button></div>
-      <Panel title={tab==="actions"?"GutHeb Actions":tab==="issues"?"Issues":tab==="pulls"?"Pull requests":tab==="projects"?"Projects":tab==="wiki"?"Wiki":tab==="security"?"Security":"Insights"}>
-        <div className="empty">This repository section is ready for repository-specific data.</div>
-      </Panel>
-    </div>}
+      </div>
+      {file?<div className="editorCard repoEditorCard"><div className="editorHead"><span>◇ {file.path}</span><span className="muted">{owner?"Editable by owner":"Read only"}</span></div><textarea readOnly={!owner} className="fileeditor" value={draft} onChange={e=>{setDraft(e.target.value);file.content=e.target.value}} spellCheck={false}/>{owner&&<div className="editorFooter"><button className="primary" onClick={()=>window.dispatchEvent(new CustomEvent("gutheb:save-file"))}>Save changes</button></div>}</div>:!currentPath&&<div className="readmeCard githubReadme"><div className="readmeHead"><span>▤ README.md</span><span className="muted">Edit</span></div><div className="readmeBody"><h1>{repo.name}</h1>{readme.replace(/^# .*?\\n?/,"").trim()?<p>{readme.replace(/^# .*?\\n?/,"").trim()}</p>:<p>{repo.description||"No README description yet."}</p>}</div></div>}
+    </main><aside className="repoAside githubAside"><section><h3>About</h3><p>{repo.description||"No description, website, or topics provided."}</p>{repo.website&&<a href={repo.website} target="_blank" rel="noreferrer">↗ Website</a>}<div className="asideLink">◇ Readme</div><div className="asideLink">◉ Activity</div></section><section><h3>Releases</h3><p className="muted">No releases published</p><a>Create a new release</a></section><section><h3>Packages</h3><p className="muted">No packages published</p><a>Publish your first package</a></section><section><h3>Contributors</h3><div className="contributor"><span className="miniAvatar">{(repo.owner||"U")[0].toUpperCase()}</span><b>{repo.owner||"user"}</b><small>1 commit</small></div></section><section><h3>Languages</h3><div className="languageBar"><span style={{width:"100%"}}/></div><p><b>● {repo.language||"Code"}</b> <span className="muted">100%</span></p></section></aside></div>}
+    {tab!=="code"&&<div className="repoSubpage"><div className="repoSubpageHead"><h2>{tab==="pulls"?"Pull requests":tab[0].toUpperCase()+tab.slice(1)}</h2><button className="codeGreen" onClick={()=>setTab("code")}>← Code</button></div><Panel title={tab==="actions"?"GutHeb Actions":tab==="issues"?"Issues":tab==="pulls"?"Pull requests":tab==="projects"?"Projects":tab==="wiki"?"Wiki":tab==="security"?"Security":"Insights"}><div className="empty">This repository section is ready for repository-specific data.</div></Panel></div>}
   </section>
 }
 
