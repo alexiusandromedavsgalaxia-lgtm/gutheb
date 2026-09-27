@@ -2,6 +2,15 @@ import { parseYUML, DEFAULT_YUML } from "../lib/yuml.js";
 
 const memory = globalThis.__GUTHEB_ACTIONS__ ||= new Map();
 
+async function sessionUser(request, env){
+  const users=env.USERS_DB;
+  if(!users)return null;
+  const raw=request.headers.get("Cookie")||"",m=raw.match(/(?:^|; )gutheb_session=([^;]+)/);
+  if(!m)return null;
+  const hash=[...new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(m[1])))].map(x=>x.toString(16).padStart(2,"0")).join("");
+  return users.prepare("SELECT u.id,u.username FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(hash,new Date().toISOString()).first();
+}
+
 function json(data,status=200){
   return new Response(JSON.stringify(data),{status,headers:{
     "content-type":"application/json; charset=utf-8",
@@ -27,7 +36,7 @@ function makeRun(workflow,ref,yuml,plan){
     artifacts:[]
   });
 }
-export async function onRequestGet({request}){
+export async function onRequestGet({request,env}){
   const u=new URL(request.url),op=u.searchParams.get("op")||"runs";
   const runs=[...memory.values()].filter(x=>x.kind==="run").sort((a,b)=>b.run_number-a.run_number);
   if(op==="runs") return json({runs:runs.slice(0,100)});
