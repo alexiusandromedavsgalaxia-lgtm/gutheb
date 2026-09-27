@@ -44,7 +44,7 @@ export async function onRequestPost({request,env}){
       const type=String.fromCharCode(bytes[pos+156]||48);const dataStart=pos+512;
       const blocks=Math.ceil(size/512);pos=dataStart+blocks*512;
       if(type==="5"||type==="2")continue;
-      const path=name.replace(/^[^/]+\\//,"").replace(/^\\.\\//,"");if(!path)continue;
+      const path=name.replace(/^[^/]+\//,"").replace(/^\.\//,"");if(!path)continue;
       if(size>1024*1024)continue;
       const data=bytes.slice(dataStart,dataStart+size);if(data.some(b=>b===0))continue;
       const content=decoder.decode(data);total+=content.length;if(total>10*1024*1024)break;
