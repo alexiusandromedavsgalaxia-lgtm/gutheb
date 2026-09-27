@@ -350,18 +350,18 @@ function Marketplace({repos,selectedRepo,saveLocalRepo,user,flash}){
   const filtered=published.filter(x=>(x.name+" "+x.description+" "+x.author_name).toLowerCase().includes(q.toLowerCase()));
 
   if(publishing)return <Page title="Publish an Action" subtitle="Create a native GutHeb Action with your own definition and structure.">
-    <form className="panel marketPublisher" onSubmit={publish}>
+    <div className="marketplaceV2"><form className="panel marketPublisher" onSubmit={publish}>
       <div className="publisherIntro"><span className="marketEyebrow">GUTHEB MARKETPLACE</span><h2>New Action</h2><p>GutHeb validates only the Marketplace metadata. The Action definition is yours and is stored exactly as supplied.</p></div>
       {error&&<div className="actionError">{error}</div>}
       <div className="publisherGrid"><label>Name<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="My Action" required/></label><label>Version<input value={form.version} onChange={e=>setForm({...form,version:e.target.value})} placeholder="1.0.0" required/></label></div>
       <label>Description<textarea value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="What does this Action do?" required/></label>
       <label>Action definition<textarea className="marketDefinition" value={form.definition} onChange={e=>setForm({...form,definition:e.target.value})} placeholder="Write your own Action structure here. GutHeb will not replace it with a predefined template." spellCheck={false} required/></label>
       <div className="publisherActions"><button type="button" onClick={()=>{setPublishing(false);setError("")}}>Cancel</button><button className="primary" disabled={saving}>{saving?"Publishing…":"Publish Action"}</button></div>
-    </form>
+    </form></div>
   </Page>;
 
   return <Page title="Marketplace" subtitle="Discover and publish native GutHeb Actions.">
-    <div className="marketHero"><div><span className="marketEyebrow">GUTHEB MARKETPLACE</span><h2>Your Action catalog</h2><p>Installed Actions are copied into the selected repository under .gh/yuml/.</p></div><button className="primary" onClick={()=>{setPublishing(true);setError("")}}>＋ Publish an Action</button></div>
+    <div className="marketplaceV2"><div className="marketHero"><div><span className="marketEyebrow">GUTHEB MARKETPLACE</span><h2>Your Action catalog</h2><p>Installed Actions are copied into the selected repository under .gh/yuml/.</p></div><button className="primary" onClick={()=>{setPublishing(true);setError("")}}>＋ Publish an Action</button></div>
     <div className="marketInstallTarget"><label>Install into <select value={installTarget} onChange={e=>setInstallTarget(e.target.value)}><option value="">Select repository…</option>{repos.filter(r=>!r.owner||r.owner===user.name).map(r=><option key={r.name} value={r.name}>{r.name}</option>)}</select></label><small>Marketplace Actions are installed as <code>.gh/yuml/&lt;action&gt;.yuml</code> in the selected repository.</small></div><div className="marketTabs"><button className={tab==="actions"?"sel":""} onClick={()=>setTab("actions")}>Actions</button><button className={tab==="installed"?"sel":""} onClick={()=>setTab("installed")}>Installed</button></div>
     {tab==="actions"&&<div><div className="marketSearch"><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search published Actions…"/></div>{error&&<div className="actionError">{error}</div>}
       {filtered.length?<div className="marketGrid">{filtered.map(item=><article className="marketActionCard marketActionCardClickable" key={item.id} onClick={()=>{setSelectedAction(item);setEditing(false);setEditForm(null)}}><div className="marketActionIcon">⚙</div><div className="marketActionBody"><div className="marketActionHead"><div><h3>{item.name}</h3><small>{item.author_name} · v{item.version}</small></div><button onClick={e=>{e.stopPropagation();install(item)}}>{installed.includes(item.id)?"Installed":"Install"}</button></div><p>{item.description}</p><div className="marketActionFooter"><code>{item.slug}</code><span>View details ›</span></div></div></article>)}</div>:
