@@ -6,7 +6,18 @@ async function currentUser(request,env){
   const raw=request.headers.get("Cookie")||"",m=raw.match(/(?:^|; )gutheb_session=([^;]+)/);if(!m)return null;
   return users.prepare("SELECT u.id,u.username,u.email FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(await sha(m[1]),new Date().toISOString()).first();
 }
-function db(env){return env.REPOS_DB||env.repositories||env.REPOSITORIES||env.GUTHEB_DB}
+function db(env){return env.repositories||env.REPOS_DB||env.REPOSITORIES||env.GUTHEB_DB}
+async function ensureRepoSchema(d){
+  const required=[
+    ["repos","id"],["repos","owner_id"],["repos","name"],
+    ["repo_files","repo_id"],["repo_files","path"],["repo_files","content"],
+    ["repo_folders","repo_id"],["repo_folders","path"]
+  ];
+  for(const [table,column] of required){
+    const q=await d.prepare("PRAGMA table_info("+table+")").all();
+    if(!q.results?.some(x=>x.name===column)) throw new Error("GUT storage schema is missing "+table+"."+column);
+  }
+}
 async function schema(d){
   await d.batch([
     d.prepare(`CREATE TABLE IF NOT EXISTS gut_archives (
@@ -49,6 +60,7 @@ async function execute({request,env,body}){
   const user=await currentUser(request,env);if(!user)return json({error:"Not authenticated."},401);
   const d=db(env);if(!d)return json({error:"REPOS_DB/repositories is not bound."},503);
   await schema(d);
+  await ensureRepoSchema(d);
   const p=parseCommand(body.command);
   if(!p)return json({error:"Invalid GUT command.",commands:[
     "gut pash -g clone archive <archive>",
@@ -77,7 +89,6 @@ async function execute({request,env,body}){
     return json({ok:true,protocol:"GUT/1",operation:"clone_archive",archive:{id:a.id,name:a.name,created_at:a.created_at,updated_at:a.updated_at},payload});
   }
 
-  const r=await repoFor(d,user,body.repo||"");
   if(p.op==="delete"&&p.kind==="repo"){
     const target=await repoFor(d,user,p.target);if(!target)return json({error:"Repository not found."},404);
     await d.batch([
