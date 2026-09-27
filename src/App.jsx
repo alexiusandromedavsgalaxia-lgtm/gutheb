@@ -49,8 +49,9 @@ function App(){
     const nf=e=>{if(!selectedRepo)return;const path=e.detail.trim();if(!path)return;const next={...selectedRepo,files:{...(selectedRepo.files||{})}};if(next.files[path]!==undefined)return flash("File already exists");next.files[path]="";saveLocalRepo(next);setFile({path,content:""});};
     const nd=e=>{if(!selectedRepo)return;const path=e.detail.trim();if(!path)return;const next={...selectedRepo,folders:[...(selectedRepo.folders||[])]};if(next.folders.includes(path))return flash("Folder already exists");next.folders.push(path);saveLocalRepo(next);};
     const sf=()=>{if(!selectedRepo||!file)return;const next={...selectedRepo,files:{...(selectedRepo.files||{}),[file.path]:file.content}};saveLocalRepo(next);flash("File saved");};
-    addEventListener("gutheb:new-file",nf);addEventListener("gutheb:new-folder",nd);addEventListener("gutheb:save-file",sf);
-    return()=>{removeEventListener("gutheb:new-file",nf);removeEventListener("gutheb:new-folder",nd);removeEventListener("gutheb:save-file",sf)}
+    const sfc=e=>{const d=e.detail||{};if(!selectedRepo||!d.path)return;const next={...selectedRepo,files:{...(selectedRepo.files||{}),[d.path]:String(d.content||"")}};saveLocalRepo(next);};
+    addEventListener("gutheb:new-file",nf);addEventListener("gutheb:new-folder",nd);addEventListener("gutheb:save-file",sf);addEventListener("gutheb:set-file-content",sfc);
+    return()=>{removeEventListener("gutheb:new-file",nf);removeEventListener("gutheb:new-folder",nd);removeEventListener("gutheb:save-file",sf);removeEventListener("gutheb:set-file-content",sfc)}
   },[selectedRepo,file]);
   function togglePin(name){setPinned(x=>x.includes(name)?x.filter(v=>v!==name):[...x,name]);flash(pinned.includes(name)?"Repository unpinned":"Repository pinned");}
   async function askAI(e){e.preventDefault();const q=aiInput.trim();if(!q)return;setAiInput("");setAiMessages(x=>[...x,{role:"user",text:q},{role:"ai",text:"Pensando…"}]);try{const res=await fetch("/api/ai",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({message:q,history:aiMessages.slice(-10),repo:selectedRepo||null})});const data=await res.json();if(!res.ok)throw new Error(data.error||"AI request failed");let nextRepo=selectedRepo;for(const op of Array.isArray(data.operations)?data.operations:[]){const path=String(op.path||"").split("/").filter(p=>p && p!=="..").join("/");if(!path||path.includes(".."))continue;if(op.type==="write_file"){if(!nextRepo)continue;nextRepo={...nextRepo,files:{...(nextRepo.files||{}),[path]:String(op.content||"")}}}else if(op.type==="delete_file"){if(!nextRepo)continue;const fs={...(nextRepo.files||{})};delete fs[path];nextRepo={...nextRepo,files:fs}}else if(op.type==="create_folder"){if(!nextRepo)continue;const folders=[...(nextRepo.folders||[])];if(!folders.includes(path))folders.push(path);nextRepo={...nextRepo,folders}}}if(nextRepo&&nextRepo!==selectedRepo){setSelectedRepo(nextRepo);setRepos(x=>x.map(r=>r.id===nextRepo.id||r.name===nextRepo.name?nextRepo:r));await saveLocalRepo(nextRepo);flash("GutHeb AI ha aplicado los cambios al repositorio");}setAiMessages(x=>{const copy=[...x];copy[copy.length-1]={role:"ai",text:data.message||"Hecho."};return copy});}catch(err){setAiMessages(x=>{const copy=[...x];copy[copy.length-1]={role:"ai",text:"No he podido ejecutar la acción: "+err.message};return copy})}}
@@ -149,8 +150,12 @@ function App(){
 
   if(!user) return <Auth auth={auth} setAuth={setAuth} form={authForm} setForm={setAuthForm} onLogin={login} onRegister={register}/>;
 
-  const routeRepo=page.startsWith("repo/")?page.slice(5):null;
-  if(routeRepo && !selectedRepo){const r=repos.find(x=>x.name===routeRepo);if(r){setTimeout(()=>openRepo(r),0);}}
+  const routeParts=page.startsWith("repo/")?page.slice(5).split("/"):[];
+  const routeRepo=routeParts.length?decodeURIComponent(routeParts[0]):null;
+  const routeKind=routeParts[1]||"";
+  const routeBranch=routeParts[2]?decodeURIComponent(routeParts[2]):"main";
+  const routePath=routeParts.slice(3).map(x=>decodeURIComponent(x)).join("/");
+  if(routeRepo && !selectedRepo){const r=repos.find(x=>x.name===routeRepo);if(r){setTimeout(()=>{setSelectedRepo({...r,currentBranch:routeBranch});setRepoTab("code");setTree(Object.keys(r.files||{}).map(path=>({path,type:"blob"})));if(routeKind==="blob"&&routePath&&r.files?.[routePath]!==undefined)setFile({path:routePath,content:r.files[routePath]});},0);}}
 
   return <div className="gh">
     <header className={"top "+(routeRepo?"repoGlobalTop":"")}>
@@ -204,7 +209,7 @@ function App(){
         {page==="notifications"&&<Notifications/>}
         {page==="profile"&&<Profile user={user} profile={profile} setProfile={setProfile} save={saveProfile} repos={repos.filter(r=>!r.owner||r.owner===user.name)} pinned={pinned} togglePin={togglePin}/>}
         {page==="settings"&&<Settings settings={settings} setSettings={setSettings} user={user}/>}
-        {routeRepo&&selectedRepo&&<Repo repo={selectedRepo} tab={repoTab} setTab={setRepoTab} tree={tree} file={file} openFile={openFile} go={go} packages={packages} user={user} repoBranches={repoBranches} createBranch={createBranch} selectBranch={selectBranch} downloadRepoZip={downloadRepoZip} openInWorkers={openInWorkers} flash={flash}/>}
+        {routeRepo&&selectedRepo&&<Repo repo={selectedRepo} tab={repoTab} setTab={setRepoTab} tree={tree} file={file} openFile={openFile} go={go} packages={packages} user={user} repoBranches={repoBranches} createBranch={createBranch} selectBranch={selectBranch} downloadRepoZip={downloadRepoZip} openInWorkers={openInWorkers} flash={flash} currentPath={routePath} routeKind={routeKind}/>}
       </main>
       {aiOpen&&<AIChat messages={aiMessages} input={aiInput} setInput={setAiInput} onSubmit={askAI} close={()=>setAiOpen(false)}/>} 
     </div>
