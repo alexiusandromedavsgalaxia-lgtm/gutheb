@@ -72,7 +72,7 @@ async function makeRun(workflow,ref,yuml,plan,db,ownerId){
   const runId=id("run"),jobId=id("job");
   return {
     id:runId,
-    owner_id:ownerId,\n    run_number:await nextRunNumber(db,ownerId),
+    owner_id:ownerId, run_number:await nextRunNumber(db,ownerId),
     name:workflow||plan.name,
     event:"workflow_dispatch",
     head_branch:ref||"main",
