@@ -28,7 +28,7 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "Missing CLOUDFLARE_API_TOKEN"; exit 1; }
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Install Wrangler
         run: npm install --global wrangler@latest
@@ -48,12 +48,22 @@ jobs:
           echo "id=$DB_ID" >> "$GITHUB_OUTPUT"
           echo "Using guthebactions: $DB_ID"
 
-      - name: Generate production Wrangler config
+      - name: Resolve all D1 bindings
         shell: bash
         run: |
           set -euo pipefail
-          sed "s/REPLACE_WITH_GUTHEBACTIONS_D1_ID/${{ steps.actions_db.outputs.id }}/g" wrangler.jsonc > wrangler.deploy.jsonc
-          mv wrangler.deploy.jsonc wrangler.jsonc
+          IDS="$(wrangler d1 list --json)"
+          resolve_id() {
+            NAME="$1"
+            node -e 'const a=JSON.parse(process.argv[1]);const n=process.argv[2];const x=a.find(x=>x.name===n);if(!x?.uuid){console.error("Missing D1 database: "+n);process.exit(1)}process.stdout.write(x.uuid)' "$IDS" "$NAME"
+          }
+          sed -i "s/REPLACE_WITH_USERS_D1_ID/$(resolve_id users)/" wrangler.jsonc
+          sed -i "s/REPLACE_WITH_REPOS_D1_ID/$(resolve_id repos)/" wrangler.jsonc
+          sed -i "s/REPLACE_WITH_ARCHIVECONTENT_D1_ID/$(resolve_id archivecontent)/" wrangler.jsonc
+          sed -i "s/REPLACE_WITH_REPOZIP_D1_ID/$(resolve_id zip)/" wrangler.jsonc
+          sed -i "s/REPLACE_WITH_WORKERS_PAGES_D1_ID/$(resolve_id workers-pages)/" wrangler.jsonc
+          sed -i "s/REPLACE_WITH_GUTHEBACTIONS_D1_ID/${{ steps.actions_db.outputs.id }}/" wrangler.jsonc
+          echo "All D1 bindings resolved."
 
       - name: Apply guthebactions migrations
         run: wrangler d1 migrations apply guthebactions --remote --config wrangler.jsonc
