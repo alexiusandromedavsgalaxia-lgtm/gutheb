@@ -290,7 +290,36 @@ function Actions(){
 function Projects(){return <Page title="Projects" subtitle="Track work with tables, boards, and roadmaps."><div className="board"><div>Todo</div><div>In progress</div><div>Done</div><article>Plan next release</article><article>Build issue workflow</article><article>Ship first version</article></div></Page>}
 function Discussions(){return <Page title="Discussions" subtitle="Community conversations and long-form collaboration."><Panel title="Recent discussions"><Activity text="Welcome to the community"/><Activity text="Share what you are building"/><Activity text="Feature ideas"/></Panel></Page>}
 function Codespaces(){return <Page title="Codespaces" subtitle="Cloud development environments for your repositories."><Panel title="Your codespaces"><div className="empty">No codespaces yet.<br/><button className="primary">Create a codespace</button></div></Panel></Page>}
-function Marketplace(){return <Page title="Marketplace" subtitle="Apps, actions, and developer tools."><div className="marketgrid">{["CI/CD","Code quality","Project management","Security","Deployment","AI tools"].map(x=><div className="market" key={x}><b>{x}</b><p>Explore integrations for {x.toLowerCase()}.</p><button>Explore</button></div>)}</div></Page>}
+function Marketplace(){
+  const [tab,setTab]=useState("actions");
+  const [q,setQ]=useState("");
+  const [category,setCategory]=useState("All");
+  const [installed,setInstalled]=useState(()=>JSON.parse(localStorage.getItem("gutheb-market-installed")||"[]"));
+  const categories=["All","Actions","CI/CD","Build","Deploy","Testing","Security","AI","Utilities"];
+  const catalog=[
+    {id:"gutheb/hello-action",name:"Hello Action",author:"GutHeb",category:"Actions",description:"A native GutHeb Action package.",version:"1.0.0",downloads:"—",verified:true},
+    {id:"gutheb/build-action",name:"Build",author:"GutHeb",category:"Build",description:"Build projects with GutHeb Runner.",version:"1.0.0",downloads:"—",verified:true},
+    {id:"gutheb/deploy-action",name:"Deploy",author:"GutHeb",category:"Deploy",description:"Deploy a project from a native YUML workflow.",version:"1.0.0",downloads:"—",verified:true},
+    {id:"gutheb/test-action",name:"Test",author:"GutHeb",category:"Testing",description:"Run project tests in GutHeb Runner.",version:"1.0.0",downloads:"—",verified:true},
+    {id:"community/example-action",name:"Example Action",author:"Community",category:"Actions",description:"Community-published Action example.",version:"0.1.0",downloads:"—",verified:false}
+  ];
+  const filtered=catalog.filter(x=>(category==="All"||x.category===category)&&((x.name+" "+x.description+" "+x.author).toLowerCase().includes(q.toLowerCase())));
+  function install(item){
+    if(installed.includes(item.id)) return flash("Action already installed");
+    const next=[...installed,item.id];setInstalled(next);localStorage.setItem("gutheb-market-installed",JSON.stringify(next));flash(item.name+" installed");
+  }
+  return <Page title="Marketplace" subtitle="Discover and publish native GutHeb Actions.">
+    <div className="marketHero">
+      <div><span className="marketEyebrow">GUTHEB MARKETPLACE</span><h2>Actions built for GutHeb</h2><p>People can create their own Actions, publish them here, and install them into repositories.</p></div>
+      <button className="primary" onClick={()=>flash("Publisher workspace coming next")}>＋ Publish an Action</button>
+    </div>
+    <div className="marketTabs"><button className={tab==="actions"?"sel":""} onClick={()=>setTab("actions")}>Actions</button><button className={tab==="installed"?"sel":""} onClick={()=>setTab("installed")}>Installed</button></div>
+    <div className="marketToolbar"><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search Actions..." /><div className="marketCategories">{categories.map(x=><button key={x} className={category===x?"sel":""} onClick={()=>setCategory(x)}>{x}</button>)}</div></div>
+    {tab==="actions"&&<div className="marketActionGrid">{filtered.map(item=><article className="marketActionCard" key={item.id}><div className="marketActionIcon">⚡</div><div className="marketActionBody"><div className="marketActionTitle"><h3>{item.name}</h3>{item.verified&&<span className="verified">✓ GutHeb</span>}</div><p>{item.description}</p><small>{item.author} · v{item.version} · {item.category}</small><div className="marketActionFooter"><span>{item.downloads} downloads</span><button onClick={()=>install(item)}>{installed.includes(item.id)?"Installed":"Install"}</button></div></div></article>)}</div>}
+    {tab==="installed"&&<Panel title="Installed Actions">{installed.length?installed.map(id=><div className="resourceRow" key={id}><div><b>{catalog.find(x=>x.id===id)?.name||id}</b><small>{id}</small></div><span className="statusPill success">Installed</span></div>):<div className="empty">No Actions installed yet.</div>}</Panel>}
+    {!filtered.length&&tab==="actions"&&<div className="empty">No Actions match your search.</div>}
+  </Page>
+}
 function Explore(){return <Page title="Explore" subtitle="Discover projects, topics, and developers."><div className="grid2"><Panel title="Trending"><RepoMini r={{name:"awesome-project",description:"A trending open-source project",language:"JavaScript"}}/></Panel><Panel title="Topics"><div className="topics">{["javascript","react","cloud","ai","games","web"].map(x=><span key={x}>#{x}</span>)}</div></Panel></div></Page>}
 function Notifications(){return <Page title="Notifications"><Panel title="Inbox"><div className="empty">You're all caught up. 🎉</div></Panel></Page>}
 function Profile({user,profile,setProfile,save,repos,pinned,togglePin}){const avatarFile=e=>{const f=e.target.files?.[0];if(!f)return;if(f.size>4*1024*1024)return;const reader=new FileReader();reader.onload=()=>setProfile(p=>({...p,avatar:String(reader.result||"")}));reader.readAsDataURL(f)};return <Page title={user.name} subtitle={user.email}><div className="profileHero"><div className="avatar">{profile.avatar?<img src={profile.avatar} alt="Profile"/>:<span>{user.name.slice(0,1).toUpperCase()}</span>}</div><div><h2>{user.name}</h2><p>{profile.bio||"Add a short bio to your profile."}</p></div></div><form className="panel form" onSubmit={save}><label>Username<input required value={profile.username??user.name} onChange={e=>setProfile({...profile,username:e.target.value})}/></label><label>Profile photo<input type="file" accept="image/*" onChange={avatarFile}/></label><label>Bio<textarea value={profile.bio} onChange={e=>setProfile({...profile,bio:e.target.value})}/></label><label>Location<input value={profile.location} onChange={e=>setProfile({...profile,location:e.target.value})}/></label><label>Website<input value={profile.website} onChange={e=>setProfile({...profile,website:e.target.value})}/></label><button className="primary">Save profile</button></form><Panel title="Repositories">{repos.map(r=><RepoMini r={r} key={r.name} pinned={pinned.includes(r.name)} pin={()=>togglePin(r.name)}/>)}</Panel></Page>}
