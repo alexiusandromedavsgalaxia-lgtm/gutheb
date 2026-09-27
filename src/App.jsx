@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-const API = "https://api.github.com";
-
 const seedRepos = [];
 
 const seedIssues = [
@@ -35,6 +33,7 @@ function App(){
   const [pinned,setPinned]=useState(()=>JSON.parse(localStorage.getItem("gutheb-pinned")||"[]"));
   const [aiOpen,setAiOpen]=useState(false); const [aiInput,setAiInput]=useState(""); const [aiMessages,setAiMessages]=useState([]);
   const [packages,setPackages]=useState(()=>JSON.parse(localStorage.getItem("gutheb-packages")||"[]"));
+  const [newItem,setNewItem]=useState({type:"file",path:"",content:""});
 
   useEffect(()=>{
     const onHash=()=>setPage(location.hash.replace("#/","")||"home");
@@ -46,6 +45,13 @@ function App(){
   useEffect(()=>localStorage.setItem("gutheb-repos-v2",JSON.stringify(repos)),[repos]);
   useEffect(()=>localStorage.setItem("gutheb-pinned",JSON.stringify(pinned)),[pinned]);
   useEffect(()=>localStorage.setItem("gutheb-packages",JSON.stringify(packages)),[packages]);
+  useEffect(()=>{
+    const nf=e=>{if(!selectedRepo)return;const path=e.detail.trim();if(!path)return;const next={...selectedRepo,files:{...(selectedRepo.files||{})}};if(next.files[path]!==undefined)return flash("File already exists");next.files[path]="";saveLocalRepo(next);setFile({path,content:""});};
+    const nd=e=>{if(!selectedRepo)return;const path=e.detail.trim();if(!path)return;const next={...selectedRepo,folders:[...(selectedRepo.folders||[])]};if(next.folders.includes(path))return flash("Folder already exists");next.folders.push(path);saveLocalRepo(next);};
+    const sf=()=>{if(!selectedRepo||!file)return;const next={...selectedRepo,files:{...(selectedRepo.files||{}),[file.path]:file.content}};saveLocalRepo(next);flash("File saved");};
+    addEventListener("gutheb:new-file",nf);addEventListener("gutheb:new-folder",nd);addEventListener("gutheb:save-file",sf);
+    return()=>{removeEventListener("gutheb:new-file",nf);removeEventListener("gutheb:new-folder",nd);removeEventListener("gutheb:save-file",sf)}
+  },[selectedRepo,file]);
   function togglePin(name){setPinned(x=>x.includes(name)?x.filter(v=>v!==name):[...x,name]);flash(pinned.includes(name)?"Repository unpinned":"Repository pinned");}
   async function askAI(e){e.preventDefault();const q=aiInput.trim();if(!q)return;setAiMessages(x=>[...x,{role:"user",text:q},{role:"ai",text:"Pensando…"}]);setAiInput("");try{const res=await fetch("/api/ai",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({message:q,history:aiMessages.slice(-12)})});const data=await res.json();if(!res.ok)throw new Error(data.error||"AI request failed");setAiMessages(x=>{const copy=[...x];copy[copy.length-1]={role:"ai",text:data.output||"No response."};return copy});}catch(err){setAiMessages(x=>{const copy=[...x];copy[copy.length-1]={role:"ai",text:"No he podido conectar con el backend de GutHeb AI todavía. Configura POLLINATIONS_API_KEY en Cloudflare y vuelve a intentarlo."};return copy})}}
   function aiAnswer(q){const l=q.toLowerCase();if(l.includes("crear")&&l.includes("repo"))return "Puedo preparar un nuevo repositorio desde el panel de creación. Para seguridad, las escrituras reales necesitan un backend autenticado conectado a GutHeb.";if(l.includes("readme"))return "Puedo generar la estructura y el contenido de un README, además de sugerir licencia, topics y estructura de carpetas.";if(l.includes("licencia"))return "Puedo ayudarte a elegir y generar archivos de licencia conocidos, pero la aplicación debe guardar el archivo mediante su backend.";if(l.includes("paquete")||l.includes("package"))return "Puedo analizar package.json y mostrar dependencias y versiones cuando el repositorio las exponga.";return "Soy GutHeb AI. Puedo ayudarte a diseñar repositorios, README, issues, PRs, estructura de proyectos, código y automatizaciones. Para acciones reales sobre Git, necesito una API/backend con autenticación segura.";}
@@ -60,27 +66,46 @@ function App(){
   function createRepo(e){
     e.preventDefault();
     if(!newRepo.name.trim()) return flash("Repository name is required");
-    const r={owner:user.name,name:newRepo.name.trim(),visibility:newRepo.visibility,language:"",stars:0,forks:0,updated:"just now",description:newRepo.description,license:"MIT",readme:true,packages:[]};
+    const r={owner:user.name,name:newRepo.name.trim(),visibility:newRepo.visibility,language:"",stars:0,forks:0,updated:"just now",description:newRepo.description,license:"MIT",files:{
+      "README.md":"# "+newRepo.name.trim()+"\n\n"+(newRepo.description||"")+"\n",
+      "LICENSE":"MIT License\n\nCopyright (c) "+new Date().getFullYear()+" "+user.name+"\n"
+    },folders:[]};
     setRepos(x=>[r,...x]); setNewRepo({name:"",description:"",visibility:"Public"}); flash("Repository created"); go("repos");
   }
-  async function openRepo(r){
-    setSelectedRepo(r); setRepoTab("code"); setFile(null); setTree([]);
+  function openRepo(r){
+    setSelectedRepo(r); setRepoTab("code"); setFile(null); setTree(Object.keys(r.files||{}).map(path=>({path,type:"blob"})));
     go("repo/"+r.name);
-    try{
-      const res=await fetch(API+"/repos/"+encodeURIComponent(r.owner||user.name)+"/"+encodeURIComponent(r.name)+"/git/trees/main?recursive=1");
-      if(res.ok){const data=await res.json();setTree((data.tree||[]).filter(x=>x.type==="blob"||x.type==="tree"));}
-    }catch{}
   }
-  async function openFile(path){
+  function openFile(path){
     if(!selectedRepo)return;
-    try{
-      const res=await fetch(API+"/repos/"+encodeURIComponent(selectedRepo.owner||user.name)+"/"+encodeURIComponent(selectedRepo.name)+"/contents/"+path+"?ref=main");
-      if(!res.ok) throw new Error();
-      const data=await res.json();
-      const raw=atob((data.content||"").replaceAll("\\n",""));
-      const bytes=Uint8Array.from(raw,c=>c.charCodeAt(0));
-      setFile({path,content:new TextDecoder().decode(bytes)});
-    }catch{flash("Unable to load this file");}
+    const content=(selectedRepo.files||{})[path];
+    if(content===undefined)return flash("File not found");
+    setFile({path,content});
+  }
+  function saveLocalRepo(next){
+    setRepos(xs=>xs.map(r=>r.owner===selectedRepo.owner&&r.name===selectedRepo.name?next:r));
+    setSelectedRepo(next);
+    setTree(Object.keys(next.files||{}).map(path=>({path,type:"blob"})));
+  }
+  function createRepoItem(type){
+    const path=newItem.path.trim().replace(/^\/+|\/+$/g,"");
+    if(!path)return flash(type==="file"?"Enter a file path":"Enter a folder path");
+    const next={...selectedRepo,files:{...(selectedRepo.files||{})},folders:[...(selectedRepo.folders||[])]};
+    if(type==="file"){
+      if(next.files[path]!==undefined)return flash("File already exists");
+      next.files[path]=newItem.content;
+      const parts=path.split("/"); if(parts.length>1) parts.slice(0,-1).reduce((acc,p,i,a)=>{const f=a.slice(0,i+1).join("/");if(!next.folders.includes(f))next.folders.push(f);return acc},[]);
+      flash("File created");
+    }else{
+      if(next.folders.includes(path))return flash("Folder already exists");
+      next.folders.push(path); flash("Folder created");
+    }
+    saveLocalRepo(next); setNewItem({type:"file",path:"",content:""}); setFile(type==="file"?{path,content:next.files[path]}:null);
+  }
+  function saveFileEdit(){
+    if(!selectedRepo||!file)return;
+    const next={...selectedRepo,files:{...(selectedRepo.files||{}),[file.path]:file.content}};
+    saveLocalRepo(next); flash("File saved");
   }
   function createIssue(e){
     e.preventDefault();
@@ -89,7 +114,18 @@ function App(){
     setIssueTitle("");setIssueBody("");flash("Issue created");
   }
   function saveProfile(e){
-    e.preventDefault();localStorage.setItem("gutheb-profile",JSON.stringify(profile));flash("Profile saved");
+    e.preventDefault();
+    const nextName=(profile.username||user.name).trim();
+    if(!nextName)return flash("Username is required");
+    const oldName=user.name;
+    const nextUser={...user,name:nextName};
+    const nextProfile={...profile,username:nextName};
+    setUser(nextUser);
+    setProfile(nextProfile);
+    setRepos(xs=>xs.map(r=>r.owner===oldName?{...r,owner:nextName}:r));
+    localStorage.setItem("gutheb-user",JSON.stringify(nextUser));
+    localStorage.setItem("gutheb-profile",JSON.stringify(nextProfile));
+    flash("Profile saved");
   }
   const filteredRepos=useMemo(()=>repos.filter(r=>(r.name+" "+r.description).toLowerCase().includes(query.toLowerCase())),[repos,query]);
 
@@ -179,7 +215,7 @@ function Home({user,repos,openRepo,go,pinned,togglePin}){return <Page title={"Go
 
 function Repos({repos,openRepo,go,pinned,togglePin}){return <Page title="Repositories" subtitle="Create, manage, and explore your repositories." action={<button className="primary" onClick={()=>go("new")}>New</button>}><div className="repo-list">{repos.map(r=><RepoCard key={r.name} r={r} open={openRepo} pinned={pinned.includes(r.name)} pin={()=>togglePin(r.name)}/>)}</div></Page>}
 
-function NewRepo({form,setForm,onSubmit}){return <Page title="Create a new repository" subtitle="A repository contains all of your project's files, history, and collaboration tools."><form className="panel form" onSubmit={onSubmit}><label>Owner<input value="alexiusandromedavsgalaxia-lgtm" disabled/></label><label>Repository name<input autoFocus required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="my-project"/></label><label>Description <span className="muted">(optional)</span><textarea value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></label><label>Visibility<select value={form.visibility} onChange={e=>setForm({...form,visibility:e.target.value})}><option>Public</option><option>Private</option></select></label><button className="primary" type="submit">Create repository</button></form></Page>}
+function NewRepo({form,setForm,onSubmit}){const user=JSON.parse(localStorage.getItem("gutheb-user")||"{}");return <Page title="Create a new repository" subtitle="A repository contains all of your project's files, history, and collaboration tools."><form className="panel form" onSubmit={onSubmit}><label>Owner<input value={user.name||"user"} disabled/></label><label>Repository name<input autoFocus required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="my-project"/></label><label>Description <span className="muted">(optional)</span><textarea value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></label><label>Visibility<select value={form.visibility} onChange={e=>setForm({...form,visibility:e.target.value})}><option>Public</option><option>Private</option></select></label><button className="primary" type="submit">Create repository</button></form></Page>}
 
 function Issues({issues,title,setTitle,body,setBody,onSubmit}){return <Page title="Issues" subtitle="Plan, discuss, and track work."><form className="panel issueform" onSubmit={onSubmit}><input required value={title} onChange={e=>setTitle(e.target.value)} placeholder="Issue title"/><textarea value={body} onChange={e=>setBody(e.target.value)} placeholder="Leave a description..."/><button className="primary">New issue</button></form><Panel title={issues.length+" issues"}>{issues.map(i=><div className="issue" key={i.id}><span className="open">●</span><div><strong>{i.title}</strong><small>#{i.id} opened by {i.author}</small><div>{i.labels.map(l=><span className="label" key={l}>{l}</span>)}</div></div></div>)}</Panel></Page>}
 
@@ -193,13 +229,35 @@ function Codespaces(){return <Page title="Codespaces" subtitle="Cloud developmen
 function Marketplace(){return <Page title="Marketplace" subtitle="Apps, actions, and developer tools."><div className="marketgrid">{["CI/CD","Code quality","Project management","Security","Deployment","AI tools"].map(x=><div className="market" key={x}><b>{x}</b><p>Explore integrations for {x.toLowerCase()}.</p><button>Explore</button></div>)}</div></Page>}
 function Explore(){return <Page title="Explore" subtitle="Discover projects, topics, and developers."><div className="grid2"><Panel title="Trending"><RepoMini r={{name:"awesome-project",description:"A trending open-source project",language:"JavaScript"}}/></Panel><Panel title="Topics"><div className="topics">{["javascript","react","cloud","ai","games","web"].map(x=><span key={x}>#{x}</span>)}</div></Panel></div></Page>}
 function Notifications(){return <Page title="Notifications"><Panel title="Inbox"><div className="empty">You're all caught up. 🎉</div></Panel></Page>}
-function avatarFile(e){const file=e.target.files?.[0];if(!file)return;if(file.size>4*1024*1024)return flash("Profile photo must be under 4 MB");const reader=new FileReader();reader.onload=()=>{const avatar=String(reader.result||"");setProfile(p=>({...p,avatar}));localStorage.setItem("gutheb-profile",JSON.stringify({...profile,avatar}))};reader.readAsDataURL(file);}
+function avatarFile(e){const f=e.target.files?.[0];if(!f)return;if(f.size>4*1024*1024)return flash("Profile photo must be under 4 MB");const reader=new FileReader();reader.onload=()=>{const avatar=String(reader.result||"");setProfile(p=>{const next={...p,avatar};localStorage.setItem("gutheb-profile",JSON.stringify(next));return next})};reader.readAsDataURL(f);}
 
 function Profile({user,profile,setProfile,save,repos,pinned,togglePin}){return <Page title={user.name} subtitle={user.email}><div className="profileHero"><div className="avatar">{profile.avatar?<img src={profile.avatar} alt="Profile"/>:<span>{user.name.slice(0,1).toUpperCase()}</span>}</div><div><h2>{user.name}</h2><p>{profile.bio||"Add a short bio to your profile."}</p></div></div><form className="panel form" onSubmit={save}><label>Username<input required value={profile.username??user.name} onChange={e=>setProfile({...profile,username:e.target.value})}/></label><label>Profile photo<input type="file" accept="image/*" onChange={avatarFile}/></label><label>Bio<textarea value={profile.bio} onChange={e=>setProfile({...profile,bio:e.target.value})}/></label><label>Location<input value={profile.location} onChange={e=>setProfile({...profile,location:e.target.value})}/></label><label>Website<input value={profile.website} onChange={e=>setProfile({...profile,website:e.target.value})}/></label><button className="primary">Save profile</button></form><Panel title="Repositories">{repos.map(r=><RepoMini r={r} key={r.name} pinned={pinned.includes(r.name)} pin={()=>togglePin(r.name)}/>)}</Panel></Page>}
 function Settings({settings,setSettings,user}){return <Page title="Settings" subtitle="Manage your GutHeb account and preferences."><Panel title="Account"><div className="setting"><span><b>Username</b><small>{user.name}</small></span><button>Change</button></div><div className="setting"><span><b>Email</b><small>{user.email}</small></span><button>Manage</button></div></Panel><Panel title="Preferences"><div className="setting"><span><b>Theme</b><small>Dark developer theme</small></span><select value={settings.theme} onChange={e=>setSettings({...settings,theme:e.target.value})}><option>dark</option><option>light</option></select></div><div className="setting"><span><b>Email notifications</b><small>Receive product updates</small></span><input type="checkbox" checked={settings.email} onChange={e=>setSettings({...settings,email:e.target.checked})}/></div></Panel><Panel title="Danger zone"><button className="danger">Delete account</button></Panel></Page>}
 
-function Repo({repo,tab,setTab,tree,file,openFile,go,packages}){return <Page title={(repo.owner||"user")+"/"+repo.name} subtitle={repo.description} action={<div><button>☆ Star</button> <button>Fork</button></div>}><div className="repoTabs">{["code","issues","pulls","actions","projects","security","packages","insights"].map(x=><button className={tab===x?"sel":""} onClick={()=>setTab(x)} key={x}>{x[0].toUpperCase()+x.slice(1)}</button>)}</div>{tab==="code"&&<div className="repoCode"><div className="filetree">{tree.length?tree.map(x=><button key={x.path} onClick={()=>x.type==="blob"&&openFile(x.path)}>{x.type==="tree"?"📁":"📄"} {x.path}</button>):<p className="muted">Repository tree loads from the public GitHub API when available.</p>}</div>{file?<pre className="fileview"><code>{file.content}</code></pre>:<div className="empty">Select a file to view its source.</div>}</div>}{tab==="packages"&&<Panel title="Packages"><div className="empty">{packages.length?packages.join(", "):"No packages published yet."}</div></Panel>}{tab!=="code"&&tab!=="packages"&&<Panel title={tab==="issues"?"Issues":tab==="pulls"?"Pull requests":tab}><div className="empty">This {tab} workspace is ready for repository-specific data.</div></Panel>}{tab==="code"&&<RepoMeta repo={repo} tree={tree}/>}</Page>}
-
+function Repo({repo,tab,setTab,tree,file,openFile,go,packages}){
+  const [draft,setDraft]=useState(file?.content||"");
+  useEffect(()=>setDraft(file?.content||""),[file?.path]);
+  const folders=repo.folders||[];
+  return <Page title={(repo.owner||"user")+"/"+repo.name} subtitle={repo.description} action={<div><button>☆ Star</button> <button>Fork</button></div>}>
+    <div className="repoTabs">{["code","issues","pulls","actions","projects","security","packages","insights"].map(x=><button className={tab===x?"sel":""} onClick={()=>setTab(x)} key={x}>{x[0].toUpperCase()+x.slice(1)}</button>)}</div>
+    {tab==="code"&&<div>
+      <div className="repoTools">
+        <button className="primary" onClick={()=>{const p=prompt("File path","src/index.js");if(p){window.dispatchEvent(new CustomEvent("gutheb:new-file",{detail:p}))}}}>＋ New file</button>
+        <button onClick={()=>{const p=prompt("Folder path","src");if(p)window.dispatchEvent(new CustomEvent("gutheb:new-folder",{detail:p}))}}>＋ New folder</button>
+        {file&&<button onClick={()=>{window.dispatchEvent(new CustomEvent("gutheb:save-file"));}}>Save file</button>}
+      </div>
+      <div className="repoCode"><div className="filetree">
+        {folders.map(x=><div className="folder" key={"f"+x}>📁 {x}</div>)}
+        {tree.map(x=><button key={x.path} onClick={()=>x.type==="blob"&&openFile(x.path)}>{x.type==="tree"?"📁":"📄"} {x.path}</button>)}
+        {!tree.length&&!folders.length&&<p className="muted">Empty repository.</p>}
+      </div>
+      {file?<div className="fileviewWrap"><div className="filetitle">📄 {file.path}</div><textarea className="fileeditor" value={draft} onChange={e=>{setDraft(e.target.value);file.content=e.target.value}} spellCheck={false}/></div>:<div className="empty">Select a file to edit.</div>}</div>
+    </div>}
+    {tab==="packages"&&<Panel title="Packages"><div className="empty">{packages.length?packages.join(", "):"No packages published yet."}</div></Panel>}
+    {tab!=="code"&&tab!=="packages"&&<Panel title={tab==="issues"?"Issues":tab==="pulls"?"Pull requests":tab}><div className="empty">This {tab} workspace is ready for repository-specific data.</div></Panel>}
+    {tab==="code"&&<RepoMeta repo={repo} tree={tree}/>}
+  </Page>
+}
 function Page({title,subtitle,action,children}){return <section className="page"><div className="pagehead"><div><h1>{title}</h1>{subtitle&&<p>{subtitle}</p>}</div>{action}</div>{children}</section>}
 function Panel({title,action,children}){return <section className="panel"><div className="panelhead"><h2>{title}</h2>{action}</div>{children}</section>}
 function RepoMini({r,open,pinned,pin}){return <div className="repomini"><button className="repoOpen" onClick={()=>open&&open(r)}><span className="repo-name">◉ {r.name}</span><span className="muted">{r.description||"No description"}</span><span className="muted">{r.language||"Code"} · ☆ {r.stars||0}</span></button><button onClick={pin}>{pinned?"★":"☆"}</button></div>}
