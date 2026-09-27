@@ -140,7 +140,7 @@ function App(){
       <div className="topuser"><button onClick={()=>go("notifications")}>♡</button><button onClick={()=>go("profile")}>{user.name}⌄</button></div>
     </header>
 
-    <div className="appbody">
+    <div className={"appbody "+(routeRepo?"repoAppbody":"")}>
       <aside className="leftnav">
         <button className="newrepo" onClick={()=>go("new")}>＋ New</button>
         <Nav icon="/gutheb-icons/home.svg" text="Home" page="home" go={go}/>
@@ -233,25 +233,43 @@ function Repo({repo,tab,setTab,tree,file,openFile,go,packages}){
   const [draft,setDraft]=useState(file?.content||"");
   useEffect(()=>setDraft(file?.content||""),[file?.path]);
   const folders=repo.folders||[];
-  return <Page title={(repo.owner||"user")+"/"+repo.name} subtitle={repo.description} action={<div><button>☆ Star</button> <button>Fork</button></div>}>
-    <div className="repoTabs">{["code","issues","pulls","actions","projects","security","packages","insights"].map(x=><button className={tab===x?"sel":""} onClick={()=>setTab(x)} key={x}>{x[0].toUpperCase()+x.slice(1)}</button>)}</div>
-    {tab==="code"&&<div>
-      <div className="repoTools">
-        <button className="primary" onClick={()=>{const p=prompt("File path","src/index.js");if(p){window.dispatchEvent(new CustomEvent("gutheb:new-file",{detail:p}))}}}>＋ New file</button>
+  const files=tree||[];
+  const visibility=(repo.visibility||"Public").toLowerCase();
+  return <section className="repoPage">
+    <div className="repoIdentity">
+      <div className="repoCrumb"><button onClick={()=>go("profile")}>{repo.owner||"user"}</button><span>/</span><strong>{repo.name}</strong><span className={"visibility "+visibility}>{visibility}</span></div>
+      <p>{repo.description||"No description provided yet."}</p>
+      <div className="repoActions"><button onClick={()=>go("repos")}>← Repositories</button><button>☆ Star</button><button>Fork</button><button>•••</button></div>
+    </div>
+    <nav className="repoTabs">{["code","issues","pulls","actions","projects","security","packages","insights"].map(x=><button className={tab===x?"sel":""} onClick={()=>setTab(x)} key={x}>{x[0].toUpperCase()+x.slice(1)}</button>)}</nav>
+    {tab==="code"&&<div className="repoWorkspace">
+      <div className="repoToolbar">
+        <div className="branchSelect">⑂ main⌄</div>
+        <div className="repoToolbarSpacer"/>
+        <button onClick={()=>{const p=prompt("File path","src/index.js");if(p)window.dispatchEvent(new CustomEvent("gutheb:new-file",{detail:p}))}}>＋ New file</button>
         <button onClick={()=>{const p=prompt("Folder path","src");if(p)window.dispatchEvent(new CustomEvent("gutheb:new-folder",{detail:p}))}}>＋ New folder</button>
-        {file&&<button onClick={()=>{window.dispatchEvent(new CustomEvent("gutheb:save-file"));}}>Save file</button>}
+        {file&&<button className="primary" onClick={()=>window.dispatchEvent(new CustomEvent("gutheb:save-file"))}>Save changes</button>}
       </div>
-      <div className="repoCode"><div className="filetree">
-        {folders.map(x=><div className="folder" key={"f"+x}>📁 {x}</div>)}
-        {tree.map(x=><button key={x.path} onClick={()=>x.type==="blob"&&openFile(x.path)}>{x.type==="tree"?"📁":"📄"} {x.path}</button>)}
-        {!tree.length&&!folders.length&&<p className="muted">Empty repository.</p>}
+      <div className="repoLayout">
+        <aside className="repoTree">
+          <div className="treeHead"><b>Files</b><span>{files.length}</span></div>
+          {folders.map(x=><div className="treeFolder" key={"f"+x}>⌄ <span>📁</span>{x}</div>)}
+          {files.map(x=><button className={"treeFile "+(file?.path===x.path?"active":"")} key={x.path} onClick={()=>openFile(x.path)}><span>▣</span>{x.path}</button>)}
+          {!files.length&&!folders.length&&<div className="treeEmpty">No files yet.</div>}
+        </aside>
+        <section className="repoContent">
+          {file?<div className="editorCard"><div className="editorHead"><span>▣ {file.path}</span><span className="muted">Editing locally</span></div><textarea className="fileeditor" value={draft} onChange={e=>{setDraft(e.target.value);file.content=e.target.value}} spellCheck={false}/></div>:
+            <div className="repoOverview">
+              <div className="readmeCard"><div className="readmeHead"><span>README.md</span><span className="muted">main</span></div><div className="readmeBody"><h2>{repo.name}</h2><p>{repo.description||"This repository is ready for your first commit."}</p><div className="readmeStats"><span>☆ {repo.stars||0} stars</span><span>⑂ {repo.forks||0} forks</span><span>● {repo.language||"Code"}</span></div></div></div>
+              <div className="commitStrip"><span>Latest commit</span><b>Initial GutHeb repository</b><span className="muted">just now</span></div>
+            </div>}
+        </section>
       </div>
-      {file?<div className="fileviewWrap"><div className="filetitle">📄 {file.path}</div><textarea className="fileeditor" value={draft} onChange={e=>{setDraft(e.target.value);file.content=e.target.value}} spellCheck={false}/></div>:<div className="empty">Select a file to edit.</div>}</div>
+      <RepoMeta repo={repo} tree={tree}/>
     </div>}
     {tab==="packages"&&<Panel title="Packages"><div className="empty">{packages.length?packages.join(", "):"No packages published yet."}</div></Panel>}
     {tab!=="code"&&tab!=="packages"&&<Panel title={tab==="issues"?"Issues":tab==="pulls"?"Pull requests":tab}><div className="empty">This {tab} workspace is ready for repository-specific data.</div></Panel>}
-    {tab==="code"&&<RepoMeta repo={repo} tree={tree}/>}
-  </Page>
+  </section>
 }
 function Page({title,subtitle,action,children}){return <section className="page"><div className="pagehead"><div><h1>{title}</h1>{subtitle&&<p>{subtitle}</p>}</div>{action}</div>{children}</section>}
 function Panel({title,action,children}){return <section className="panel"><div className="panelhead"><h2>{title}</h2>{action}</div>{children}</section>}
