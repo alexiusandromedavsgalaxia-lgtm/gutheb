@@ -399,6 +399,9 @@ function Settings({settings,setSettings,user}){return <Page title="Settings" sub
 function Repo({repo,tab,setTab,tree,file,openFile,go,packages,user,repoBranches,createBranch,selectBranch,downloadRepoZip,openInWorkers,flash}){
   const [draft,setDraft]=useState(file?.content||"");
   const [menu,setMenu]=useState("");
+  const [release,setRelease]=useState(null);
+  const [packageInfo,setPackageInfo]=useState(null);
+  const [rawOpen,setRawOpen]=useState(false);
   useEffect(()=>setDraft(file?.content||""),[file?.path]);
   const files=tree||[];
   const key=(repo.owner||user.name)+"/"+repo.name, branches=repoBranches[key]||["main"];
@@ -414,7 +417,28 @@ function Repo({repo,tab,setTab,tree,file,openFile,go,packages,user,repoBranches,
   const directFolders=[...new Set(allPaths.map(p=>p.startsWith(prefix)?p.slice(prefix.length).split("/")[0]:"").filter(Boolean).filter(x=>x.includes(".")===false||allPaths.some(p=>p.startsWith(prefix+x+"/"))))];
   const directFiles=allPaths.filter(p=>p.startsWith(prefix)&&!p.slice(prefix.length).includes("/"));
   const goTree=(path="")=>go("repo/"+encodeURIComponent(repo.name)+"/tree/"+encodeURIComponent(branch)+(path?"/"+path.split("/").map(encodeURIComponent).join("/"):""));
-  const goBlob=path=>{openFile(path);go("repo/"+encodeURIComponent(repo.name)+"/blob/"+encodeURIComponent(branch)+"/"+path.split("/").map(encodeURIComponent).join("/"));};
+  const goBlob=path=>{openFile(path);setRawOpen(false);go("repo/"+encodeURIComponent(repo.name)+"/blob/"+encodeURIComponent(branch)+"/"+path.split("/").map(encodeURIComponent).join("/"));};
+  const rawFile=()=>{
+    if(!file)return;
+    const blob=new Blob([String(file.content||"")],{type:"text/plain;charset=utf-8"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");a.href=url;a.download=file.path.split("/").pop()||"raw.txt";a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };
+  const createRelease=()=>{
+    if(!owner)return flash("Only the repository owner can create releases");
+    const tag=prompt("Release tag","v1.0.0"); if(!tag?.trim())return;
+    const title=prompt("Release title",tag.trim()); if(title===null)return;
+    setRelease({tag:tag.trim(),title:title.trim()||tag.trim(),author:user.name,date:new Date().toISOString()});
+    flash("Release published");
+  };
+  const publishPackage=()=>{
+    if(!owner)return flash("Only the repository owner can publish packages");
+    const name=prompt("Package name",repo.name); if(!name?.trim())return;
+    const version=prompt("Package version","1.0.0"); if(!version?.trim())return;
+    setPackageInfo({name:name.trim(),version:version.trim(),owner:user.name});
+    flash("Package published");
+  };
   const addNewFile=()=>{
     if(!owner)return flash("Only the repository owner can edit this repository");
     const base=currentPath?currentPath+"/":"";
@@ -473,8 +497,8 @@ function Repo({repo,tab,setTab,tree,file,openFile,go,packages,user,repoBranches,
           {!directFiles.length&&!directFolders.length&&<div className="repoEmptyFiles">This directory is empty.</div>}
         </div>
       </div>
-      {file?<div className="editorCard repoEditorCard"><div className="editorHead"><span>◇ {file.path}</span><span className="muted">{owner?"Editable by owner":"Read only"}</span></div><textarea readOnly={!owner} className="fileeditor" value={draft} onChange={e=>{setDraft(e.target.value);file.content=e.target.value}} spellCheck={false}/>{owner&&<div className="editorFooter"><button className="primary" onClick={()=>window.dispatchEvent(new CustomEvent("gutheb:save-file"))}>Save changes</button></div>}</div>:!currentPath&&<div className="readmeCard githubReadme"><div className="readmeHead"><span>▤ README.md</span><span className="muted">Edit</span></div><div className="readmeBody"><h1>{repo.name}</h1>{readme.replace(/^# .*?\n?/,"").trim()?<p>{readme.replace(/^# .*?\\n?/,"").trim()}</p>:<p>{repo.description||"No README description yet."}</p>}</div></div>}
-    </main><aside className="repoAside githubAside"><section><h3>About</h3><p>{repo.description||"No description, website, or topics provided."}</p>{repo.website&&<a href={repo.website} target="_blank" rel="noreferrer">↗ Website</a>}<div className="asideLink">◇ Readme</div><div className="asideLink">◉ Activity</div></section><section><h3>Releases</h3><p className="muted">No releases published</p><a>Create a new release</a></section><section><h3>Packages</h3><p className="muted">No packages published</p><a>Publish your first package</a></section><section><h3>Contributors</h3><div className="contributor"><span className="miniAvatar">{(repo.owner||"U")[0].toUpperCase()}</span><b>{repo.owner||"user"}</b><small>1 commit</small></div></section><section><h3>Languages</h3><div className="languageBar"><span style={{width:"100%"}}/></div><p><b>● {repo.language||"Code"}</b> <span className="muted">100%</span></p></section></aside></div>}
+      {file?<div className="editorCard repoEditorCard"><div className="editorHead"><span>◇ {file.path}</span><div className="editorActions"><button onClick={rawFile}>Raw</button><button onClick={()=>navigator.clipboard?.writeText(String(file.content||"")).then(()=>flash("File copied")).catch(()=>flash("Could not copy file"))}>Copy</button><span className="muted">{owner?"Editable by owner":"Read only"}</span></div></div><textarea readOnly={!owner} className="fileeditor" value={draft} onChange={e=>{setDraft(e.target.value);file.content=e.target.value}} spellCheck={false}/>{owner&&<div className="editorFooter"><button className="primary" onClick={()=>window.dispatchEvent(new CustomEvent("gutheb:save-file"))}>Save changes</button></div>}</div>:!currentPath&&<div className="readmeCard githubReadme"><div className="readmeHead"><span>▤ README.md</span><span className="muted">Edit</span></div><div className="readmeBody"><h1>{repo.name}</h1>{readme.replace(/^# .*?\n?/,"").trim()?<p>{readme.replace(/^# .*?\\n?/,"").trim()}</p>:<p>{repo.description||"No README description yet."}</p>}</div></div>}
+    </main><aside className="repoAside githubAside"><section><h3>About</h3><p>{repo.description||"No description, website, or topics provided."}</p>{repo.website&&<a href={repo.website} target="_blank" rel="noreferrer">↗ Website</a>}<div className="asideLink">◇ Readme</div><div className="asideLink">◉ Activity</div></section><section><h3>Releases</h3>{release?<div className="repoRelease"><b>{release.title}</b><small>{release.tag} · {release.author}</small></div>:<p className="muted">No releases published</p>}{owner&&<button className="asideAction" onClick={createRelease}>Create a new release</button>}</section><section><h3>Packages</h3>{packageInfo?<div className="repoRelease"><b>{packageInfo.name}</b><small>v{packageInfo.version} · {packageInfo.owner}</small></div>:<p className="muted">No packages published</p>}{owner&&<button className="asideAction" onClick={publishPackage}>Publish your first package</button>}</section><section><h3>Contributors</h3><div className="contributor"><span className="miniAvatar">{(repo.owner||"U")[0].toUpperCase()}</span><b>{repo.owner||"user"}</b><small>1 commit</small></div></section><section><h3>Languages</h3><div className="languageBar"><span style={{width:"100%"}}/></div><p><b>● {repo.language||"Code"}</b> <span className="muted">100%</span></p></section></aside></div>}
     {tab!=="code"&&<div className="repoSubpage"><div className="repoSubpageHead"><h2>{tab==="pulls"?"Pull requests":tab[0].toUpperCase()+tab.slice(1)}</h2><button className="codeGreen" onClick={()=>setTab("code")}>← Code</button></div><Panel title={tab==="actions"?"GutHeb Actions":tab==="issues"?"Issues":tab==="pulls"?"Pull requests":tab==="projects"?"Projects":tab==="wiki"?"Wiki":tab==="security"?"Security":"Insights"}><div className="empty">This repository section is ready for repository-specific data.</div></Panel></div>}
   </section>
 }
