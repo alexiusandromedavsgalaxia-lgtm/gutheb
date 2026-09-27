@@ -303,6 +303,7 @@ function Marketplace({repos,selectedRepo,saveLocalRepo}){
   const [form,setForm]=useState({name:"",version:"1.0.0",description:"",definition:""});
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState("");
+  const [installTarget,setInstallTarget]=useState(selectedRepo?.name||repos.find(r=>!r.owner||r.owner===user.name)?.name||"");
 
   async function loadPublished(){
     try{const r=await fetch("/api/marketplace?op=actions",{credentials:"include"});const d=await r.json();if(!r.ok)throw new Error(d.error||"Could not load Actions");setPublished(d.actions||[]);}
@@ -319,10 +320,10 @@ function Marketplace({repos,selectedRepo,saveLocalRepo}){
     catch(e){setError(e.message)}finally{setSaving(false)}
   }
   function install(item){
-    if(!selectedRepo)return setError("Open a repository first. Marketplace installs Actions into that repository's .gh/yuml/ folder.");
-    if(selectedRepo.owner!==user.name)return setError("Only the repository owner can install an Action into this repository.");
+    const target=repos.find(r=>r.name===installTarget&&(!r.owner||r.owner===user.name));
+    if(!target)return setError("Select a repository first. Marketplace installs Actions into that repository's .gh/yuml/ folder.");
     const path=".gh/yuml/"+item.slug+".yuml";
-    const next={...selectedRepo,files:{...(selectedRepo.files||{})},folders:[...(selectedRepo.folders||[])]};
+    const next={...target,files:{...(target.files||{})},folders:[...(target.folders||[])]};
     if(next.files[path]!==undefined)return flash(item.name+" is already installed in this repository");
     next.files[path]=item.definition;
     if(!next.folders.includes(".gh"))next.folders.push(".gh");
@@ -348,7 +349,7 @@ function Marketplace({repos,selectedRepo,saveLocalRepo}){
 
   return <Page title="Marketplace" subtitle="Discover and publish native GutHeb Actions.">
     <div className="marketHero"><div><span className="marketEyebrow">GUTHEB MARKETPLACE</span><h2>Your Action catalog</h2><p>Installed Actions are copied into the selected repository under .gh/yuml/.</p></div><button className="primary" onClick={()=>{setPublishing(true);setError("")}}>＋ Publish an Action</button></div>
-    <div className="marketTabs"><button className={tab==="actions"?"sel":""} onClick={()=>setTab("actions")}>Actions</button><button className={tab==="installed"?"sel":""} onClick={()=>setTab("installed")}>Installed</button></div>
+    <div className="marketInstallTarget"><label>Install into <select value={installTarget} onChange={e=>setInstallTarget(e.target.value)}><option value="">Select repository…</option>{repos.filter(r=>!r.owner||r.owner===user.name).map(r=><option key={r.name} value={r.name}>{r.name}</option>)}</select></label><small>Marketplace Actions are installed as <code>.gh/yuml/&lt;action&gt;.yuml</code> in the selected repository.</small></div><div className="marketTabs"><button className={tab==="actions"?"sel":""} onClick={()=>setTab("actions")}>Actions</button><button className={tab==="installed"?"sel":""} onClick={()=>setTab("installed")}>Installed</button></div>
     {tab==="actions"&&<div><div className="marketSearch"><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search published Actions…"/></div>{error&&<div className="actionError">{error}</div>}
       {filtered.length?<div className="marketGrid">{filtered.map(item=><article className="marketActionCard" key={item.id}><div className="marketActionHead"><div><h3>{item.name}</h3><small>{item.author_name} · v{item.version}</small></div><button onClick={()=>install(item)}>{installed.includes(item.id)?"Installed":"Install"}</button></div><p>{item.description}</p><code>{item.slug}</code></article>)}</div>:
       <div className="marketEmpty"><div className="marketEmptyIcon">＋</div><h3>No published Actions yet</h3><p>Publish an Action and it will appear here from the GutHeb Marketplace database.</p><button className="primary" onClick={()=>{setPublishing(true);setError("")}}>Publish your first Action</button></div>}
