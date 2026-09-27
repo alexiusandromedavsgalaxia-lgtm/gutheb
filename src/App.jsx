@@ -340,7 +340,44 @@ function Codespaces({repos,user,saveLocalRepo,flash,go,sessionId:routeSessionId,
   const save=()=>{if(!repo||!path)return;const nextFiles={...workspaceFiles,[path]:draft};setWorkspaceFiles(nextFiles);saveLocalRepo({...repo,files:{...(repo.files||{}),[path]:draft}});flash("Saved");};
   const run=()=>{const c=cmd.trim();if(!c)return;let out="";if(c==="pwd")out="/workspace/"+(repo?.name||"repository");else if(c==="ls"||c==="ls -la")out=Object.keys(files).join("\\n")||"(empty)";else if(c==="clear"){setTerminal("");setCmd("");return}else if(c.toLowerCase()==="gut pash -g delete"){setWorkspaceFiles({});setPath("");setDraft("");localStorage.removeItem("gutheb-codespace-file");out="Codespace workspace cleared. Repository unchanged.";flash("Codespace vaciado. El repositorio no ha cambiado.");}else if(c==="git status")out="On branch main\\nWorking tree ready.";else if(c.startsWith("cat ")){const p=c.slice(4).trim();out=files[p]!==undefined?String(files[p]):"cat: "+p+": No such file"}else out="Command is not connected to a Linux runner yet.";setTerminal(x=>x+"$ "+c+"\\n"+out+"\\n");setCmd("")};
   const [agentBusy,setAgentBusy]=useState(false); const [agentMessages,setAgentMessages]=useState([]);
-  const sendAgent=async()=>{const p=agentPrompt.trim();if(!p||agentBusy)return;setAgentPrompt("");setAgentBusy(true);setAgentMessages(x=>[...x,{role:"user",text:p},{role:"ai",text:"Pensando…"}]);try{const res=await fetch("/api/ai",{method:"POST",credentials:"include",headers:{"content-type":"application/json"},body:JSON.stringify({message:p,history:agentMessages.slice(-10),repo:repo?{...repo,files:workspaceFiles,selectedFile:path?{path,content:String(workspaceFiles[path]??"")}:null}:null})});const data=await res.json();if(!res.ok)throw new Error(data.error||"AI request failed");let nextRepo=repo;for(const op of Array.isArray(data.operations)?data.operations:[]){const pth=String(op.path||"").replace(/^\\/+|^\\.\\//,"");if(!pth||pth.includes(".."))continue;if(op.type==="write_file"&&nextRepo)nextRepo={...nextRepo,files:{...(nextRepo.files||{}),[pth]:String(op.content||"")}};else if(op.type==="delete_file"&&nextRepo){const fs={...(nextRepo.files||{})};delete fs[pth];nextRepo={...nextRepo,files:fs}}else if(op.type==="create_folder"&&nextRepo){const folders=[...(nextRepo.folders||[])];if(!folders.includes(pth))folders.push(pth);nextRepo={...nextRepo,folders}}}if(nextRepo&&repo&&nextRepo!==repo){saveLocalRepo(nextRepo);flash("Agent applied changes");}setAgentMessages(x=>{const a=[...x];a[a.length-1]={role:"ai",text:data.message||"Hecho."};return a});}catch(e){setAgentMessages(x=>{const a=[...x];a[a.length-1]={role:"ai",text:"Error: "+e.message};return a})}finally{setAgentBusy(false)}};
+  const sendAgent=async()=>{
+    const prompt=agentPrompt.trim();
+    if(!prompt||agentBusy)return;
+    setAgentPrompt("");
+    setAgentBusy(true);
+    setAgentMessages(x=>[...x,{role:"user",text:prompt},{role:"ai",text:"Pensando…"}]);
+    try{
+      const contextRepo=repo?{...repo,files:workspaceFiles,selectedFile:path?{path,content:String(workspaceFiles[path]??"")}:null}:null;
+      const res=await fetch("/api/ai",{method:"POST",credentials:"include",headers:{"content-type":"application/json"},body:JSON.stringify({message:prompt,history:agentMessages.slice(-10),repo:contextRepo})});
+      const data=await res.json();
+      if(!res.ok)throw new Error(data.error||"AI request failed");
+      let nextRepo=repo;
+      const operations=Array.isArray(data.operations)?data.operations:[];
+      for(const op of operations){
+        const rawPath=String(op.path||"");
+        const pth=rawPath.split("/").filter(part=>part&&part!=="..").join("/");
+        if(!pth)continue;
+        if(op.type==="write_file"&&nextRepo){
+          nextRepo={...nextRepo,files:{...(nextRepo.files||{}),[pth]:String(op.content||"")}};
+        }else if(op.type==="delete_file"&&nextRepo){
+          const fs={...(nextRepo.files||{})};
+          delete fs[pth];
+          nextRepo={...nextRepo,files:fs};
+        }else if(op.type==="create_folder"&&nextRepo){
+          const folders=[...(nextRepo.folders||[])];
+          if(!folders.includes(pth))folders.push(pth);
+          nextRepo={...nextRepo,folders};
+        }
+      }
+      if(nextRepo&&repo&&nextRepo!==repo){
+        saveLocalRepo(nextRepo);
+        flash("Agent applied changes");
+      }
+      setAgentMessages(x=>{const a=[...x];a[a.length-1]={role:"ai",text:data.message||"Hecho."};return a});
+    }catch(e){
+      setAgentMessages(x=>{const a=[...x];a[a.length-1]={role:"ai",text:"Error: "+e.message};return a});
+    }finally{setAgentBusy(false)}
+  };
   if(!open)return <Page title="Codespaces" subtitle="Cloud development environments for your repositories."><Panel title="Create a codespace"><div className="codespaceCreate"><div><h2>GutHeb Codespaces</h2><p>Open a full-screen development workspace inspired by modern code editors.</p></div><label>Repository<select value={repoName} onChange={e=>setRepoName(e.target.value)}>{repos.map(r=><option key={r.name} value={r.name}>{r.owner||user.name}/{r.name}</option>)}</select></label><button className="primary" onClick={start} disabled={!repo}>Create codespace</button></div></Panel></Page>;
   return <div className="gutheb-code-fullscreen"><header className="codeTop"><div className="codeBrand">◈ GutHeb</div><div className="codeRepo">{repo?.name||repoName} <span>•</span> {sessionId.slice(0,8)}</div><div className="codeTopActions"><button onClick={save}>Save</button><button className={agent?"active":""} onClick={()=>setAgent(!agent)}>✦ Agent</button><button onClick={back}>Exit</button></div></header>
     <div className="codeBody"><aside className="codeActivity"><button className={side==="explorer"?"active":""} onClick={()=>setSide("explorer")}>▱<small>EXPLORER</small></button><button className={side==="search"?"active":""} onClick={()=>setSide("search")}>⌕<small>SEARCH</small></button><button className={side==="source"?"active":""} onClick={()=>setSide("source")}>⑂<small>SOURCE</small></button></aside>
