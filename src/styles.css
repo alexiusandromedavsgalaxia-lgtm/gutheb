@@ -135,3 +135,62 @@ textarea{min-height:110px;resize:vertical}
 .yumlEditor textarea{display:block;border:0;border-radius:0;min-height:320px;padding:18px 20px;background:#080b10;color:#dce6f5;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:1.7;resize:vertical;box-shadow:none}
 .yumlEditor textarea:focus{box-shadow:none;border:0}
 .actionsRealNotice{margin-top:14px;padding:12px 14px;border:1px solid #33405a;border-radius:9px;background:#101722;color:#9daabd;font-size:12px}
+
+/* Mobile-first polish */
+@media(max-width:720px){
+  html,body,#root{min-width:0;overflow-x:hidden}
+  button,input,select,textarea{font-size:16px}
+  .top{position:sticky;top:0;z-index:100;backdrop-filter:blur(16px);padding:8px 10px;gap:7px}
+  .top .logo,.topuser{flex:0 0 auto}
+  .topuser{margin-left:auto}
+  .topuser button{min-width:40px;min-height:40px}
+  .search{min-height:42px;margin-top:2px}
+  .page{padding:18px 11px 70px;max-width:100%;overflow:hidden}
+  .pagehead{gap:12px;margin-bottom:16px}
+  .pagehead h1{font-size:23px;line-height:1.2}
+  .pagehead p{font-size:13px}
+  .pagehead>div:last-child{width:100%;display:flex;gap:7px;flex-wrap:wrap}
+  .pagehead button{min-height:42px;flex:1}
+  .panel,.card{max-width:100%;min-width:0}
+  .actionsToolbar{width:100%;overflow-x:auto;padding-bottom:2px}
+  .actionsToolbar button{min-height:42px;white-space:nowrap}
+  .actionTabs{margin-inline:-11px;padding-inline:11px;scrollbar-width:none}
+  .actionTabs::-webkit-scrollbar{display:none}
+  .actionTabs button{min-height:44px;padding:10px 13px}
+  .yumlEditor{border-radius:8px;overflow:hidden}
+  .yumlBar{height:42px;padding:0 11px}
+  .yumlEditor textarea{min-height:390px;padding:14px 12px;font-size:14px;line-height:1.65;tab-size:2}
+  .realRunRow{grid-template-columns:12px minmax(0,1fr);gap:9px;padding:14px 2px}
+  .realRunRow strong{grid-column:2;font-size:11px;justify-self:start}
+  .realRunRow>span:last-child{display:none}
+  .resourceRow{grid-template-columns:minmax(0,1fr) auto;gap:9px;padding:13px 2px}
+  .resourceRow button{min-height:40px}
+  .resourceRow>div{min-width:0}
+  .resourceRow small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .actionLogs{min-height:420px;max-height:none;font-size:11px;padding:12px;border-radius:7px;overflow:auto}
+  .actionsRealNotice{font-size:11px;line-height:1.45}
+  .workflowEditor textarea{min-height:55vh}
+  .jobCard{grid-template-columns:14px minmax(0,1fr) auto;padding:11px}
+  .stepList{margin-left:5px;padding-left:11px}
+  .artifactRow{grid-template-columns:28px minmax(0,1fr);gap:8px;padding:13px 3px}
+  .artifactRow>button,.artifactRow>small{display:none}
+  .repoToolbar{gap:7px}
+  .repoToolbar button,.repoToolbar select{min-height:42px}
+  .repoTree{max-height:220px;overflow:auto}
+  .repoAside{padding-bottom:25px}
+}
+
+/* touch targets and landscape phones */
+@media(max-width:420px){
+  .top{padding-inline:8px}
+  .page{padding-inline:9px}
+  .pagehead h1{font-size:21px}
+  .actionsToolbar{gap:5px}
+  .actionsToolbar button{padding-inline:9px}
+  .yumlEditor textarea{min-height:340px;font-size:13px}
+}
+@media(max-width:720px) and (orientation:landscape){
+  .yumlEditor textarea{min-height:270px}
+  .actionLogs{min-height:300px}
+  .page{padding-bottom:35px}
+}
