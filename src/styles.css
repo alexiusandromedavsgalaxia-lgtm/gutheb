@@ -686,3 +686,12 @@ textarea{min-height:110px;resize:vertical}
   .repoToolbarRight>*{flex:1}
   .repoDropdown>button{width:100%}
 }
+
+
+.repoFileRow>button{display:flex;align-items:center;gap:9px;flex:1;min-width:0;border:0;background:transparent;text-align:left;padding:9px 12px;color:inherit}
+.repoFileRow>button:hover{background:#161b22}
+.editorActions{display:flex;align-items:center;gap:6px}
+.editorActions button{padding:4px 9px;font-size:12px}
+.asideAction{width:100%;margin-top:8px;padding:6px 9px;font-size:12px;text-align:left}
+.repoRelease{display:flex;flex-direction:column;gap:3px;padding:7px 0}
+.repoRelease small{color:#8b949e}
