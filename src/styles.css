@@ -104,3 +104,26 @@ textarea{min-height:110px;resize:vertical}
 .artifactRow,.resourceRow{display:grid;grid-template-columns:30px minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:14px 17px;border-bottom:1px solid #202734}.artifactRow>div{min-width:0}.artifactRow small{display:block;color:var(--muted);margin-top:3px}.artifactRow>span{font-size:20px;color:#8eb0ff}.resourceRow code{color:#a9c3ff;background:#0a0e14;padding:5px 8px;border-radius:5px}.secretWarning{margin:14px 17px;padding:10px 12px;border:1px solid #624e29;border-radius:8px;background:#241c0e;color:#d8bd82;font-size:12px}.runnerSummary{padding:15px 17px;color:#9ba7b7;border-bottom:1px solid var(--border)}
 @media(max-width:950px){.actionsTop{align-items:flex-start;flex-direction:column}.actionsTopBtns{width:100%}.actionsTopBtns button{flex:1}.actionsGrid{grid-template-columns:1fr}}
 @media(max-width:700px){.actionsTabs{width:100%}.workflowEditor{grid-template-columns:1fr}.workflowEditor aside{border-right:0;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap}.workflowEditor aside span{width:100%}.workflowEditor textarea{min-height:460px}.actionWorkflow{grid-template-columns:30px 1fr auto}.actionWorkflow button{display:none}.actionRun{grid-template-columns:12px 1fr auto}.actionRun span:nth-last-child(2){display:none}.artifactRow,.resourceRow{grid-template-columns:28px 1fr auto}.artifactRow button,.resourceRow button{display:none}}
+
+.actionsToolbar{display:flex;gap:8px;align-items:center}
+.actionTabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:14px;overflow:auto}
+.actionTabs button{background:none;border:0;color:var(--muted);padding:10px 14px;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+.actionTabs button.sel{color:var(--text);border-bottom-color:#f0f0f0}
+.actionError{margin:0 0 12px;padding:11px 13px;border:1px solid #6e3030;background:#241516;color:#ffb4b4;border-radius:8px}
+.realRunRow{width:100%;display:grid;grid-template-columns:14px minmax(0,1fr) auto auto;gap:12px;align-items:center;text-align:left;background:transparent;color:inherit;border:0;border-bottom:1px solid var(--border);padding:13px 4px;cursor:pointer}
+.realRunRow:hover{background:rgba(255,255,255,.035)}
+.realRunRow>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.realRunRow small{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.realRunRow strong{font-size:12px}
+.realRunRow>span:last-child{color:var(--muted);font-size:12px}
+.runDot.queued,.runDot.in_progress,.runDot.running{background:#d29922}
+.runDot.success,.runDot.completed{background:#3fb950}
+.runDot.failure,.runDot.failed{background:#f85149}
+.runDot.cancelled{background:#8b949e}
+.statusPill.queued,.statusPill.in_progress,.statusPill.running{color:#d29922}
+.statusPill.success,.statusPill.completed{color:#3fb950}
+.statusPill.failure,.statusPill.failed{color:#f85149}
+.statusPill.cancelled{color:#8b949e}
+.actionLogs{max-height:65vh;overflow:auto;background:#090c10;border:1px solid var(--border);border-radius:8px;padding:14px;color:#d1d5db;font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap}
+.actionsRealNotice{margin-top:12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px}
+@media(max-width:720px){.actionsToolbar button{padding:8px 9px}.realRunRow{grid-template-columns:14px minmax(0,1fr) auto}.realRunRow>span:last-child{display:none}}
