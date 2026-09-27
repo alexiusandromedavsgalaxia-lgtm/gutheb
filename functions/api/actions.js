@@ -112,7 +112,7 @@ async function getRun(db,idValue,ownerId){
     const row=await db.prepare("SELECT * FROM action_runs WHERE id=? AND owner_id=?").bind(idValue,ownerId).first();
     return row?rowRun(row):null;
   }
-  return memory.get(idValue)||null;
+  const run=memory.get(idValue)||null;\n  return run&&run.owner_id===ownerId?run:null;
 }
 
 export async function onRequestGet({request,env}){
