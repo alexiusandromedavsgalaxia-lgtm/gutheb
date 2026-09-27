@@ -27,6 +27,34 @@ async function ensureSchema(db){
     db.prepare(`CREATE INDEX IF NOT EXISTS idx_actions_published_updated ON actions(published, updated_at DESC)`),
     db.prepare(`CREATE INDEX IF NOT EXISTS idx_actions_owner ON actions(owner_id)`)
   ]);
+
+  // Built-in first-party Action. It is seeded into the real guthebactions D1
+  // so it appears in Marketplace without requiring a manual publish request.
+  const seedDefinition = `{
+    actionName = "DRF Run Build"
+    action {
+        'build' = true;
+        'branch' = '/iso'
+        'file' = '.iso'
+        "make GutHeb Actions do a ISO file"
+    }
+  }`;
+  await db.prepare(`INSERT OR IGNORE INTO actions
+    (id,owner_id,author_name,slug,name,version,description,definition,published,created_at,updated_at)
+    VALUES(?,?,?,?,?,?,?,?,1,?,?)`)
+    .bind(
+      "guthub-action-drf-run-build",
+      "guthub",
+      "GutHeb",
+      "drf-run-build",
+      "DRF Run Build",
+      "1.0.0",
+      "This Action builds your repo into an ISO in branch /iso.",
+      seedDefinition,
+      "2026-09-27T00:00:00.000Z",
+      "2026-09-27T00:00:00.000Z"
+    )
+    .run();
 }
 
 function slugify(value){
