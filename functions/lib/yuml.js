@@ -1,8 +1,9 @@
 // GutHeb YUML: a deliberately small, strict workflow language.
 // This is NOT YAML. It is parsed into a GutHeb-native action plan.
 export function parseYUML(source=""){
-  const text=String(source).replace(/\r/g,"");\n  const custom=/^\\s*\\{[\\s\\S]*?actionName\\s*=\\s*"([^"]+)"[\\s\\S]*?['"]build['"]\\s*=\\s*true[\\s\\S]*?['"]branch['"]\\s*=\\s*['"]([^'"]+)['"][\\s\\S]*?['"]file['"]\\s*=\\s*['"]([^'"]+)['"][\\s\\S]*\\}\\s*$/;
-  const customMatch=String(source).replace(/\\r/g,"").match(custom);
+  const text=String(source).replace(/\r/g,"");
+  const custom=/^\s*\{[\s\S]*?actionName\s*=\s*"([^"]+)"[\s\S]*?['"]build['"]\s*=\s*true[\s\S]*?['"]branch['"]\s*=\s*['"]([^'"]+)['"][\s\S]*?['"]file['"]\s*=\s*['"]([^'"]+)['"][\s\S]*\}\s*$/;
+  const customMatch=text.match(custom);
   if(customMatch){
     return {kind:"action",name:customMatch[1],trigger:{type:"manual"},runner:"linux",env:{},matrix:null,
       steps:[{type:"build",command:"gutheb build --iso",output:customMatch[3],branch:customMatch[2],file:customMatch[3]}]};
