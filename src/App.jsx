@@ -8,7 +8,7 @@ const seedPRs = [];
 
 function App(){
   const [user,setUser]=useState(()=>JSON.parse(localStorage.getItem("gutheb-user")||"null"));
-  const [page,setPage]=useState(()=>{const p=location.hash.replace("#/","");if(p)return p;const m=location.pathname.match(/^\/([^/]+)\/([^/]+)\.gut\/?$/);return m?"repo/"+encodeURIComponent(m[2]):"home";});
+  const [page,setPage]=useState(()=>{const p=location.hash.replace("#/","");if(p)return p;const cs=location.pathname.match(/^\/codespace\/([^/]+)\/session\/([^/]+)\/?$/);if(cs)return "codespace/"+decodeURIComponent(cs[1])+"/session/"+decodeURIComponent(cs[2]);const m=location.pathname.match(/^\/([^/]+)\/([^/]+)\.gut\/?$/);return m?"repo/"+encodeURIComponent(m[2]):"home";});
   const [auth,setAuth]=useState("login");
   const [authForm,setAuthForm]=useState({name:"",email:"",password:""});
   const [notice,setNotice]=useState("");
@@ -35,14 +35,14 @@ function App(){
   const [repoBranches,setRepoBranches]=useState(()=>JSON.parse(localStorage.getItem("gutheb-branches-v1")||"{}"));
 
   useEffect(()=>{
-    const onHash=()=>setPage(location.hash.replace("#/","")||"home");
-    addEventListener("hashchange",onHash); return()=>removeEventListener("hashchange",onHash);
+    const onRoute=()=>{const p=location.hash.replace("#/","");if(p){setPage(p);return;}const cs=location.pathname.match(/^\/codespace\/([^/]+)\/session\/([^/]+)\/?$/);setPage(cs?"codespace/"+decodeURIComponent(cs[1])+"/session/"+decodeURIComponent(cs[2]):"home")};
+    addEventListener("hashchange",onRoute); addEventListener("popstate",onRoute); return()=>{removeEventListener("hashchange",onRoute);removeEventListener("popstate",onRoute)};
   },[]);
   useEffect(()=>{
     fetch("/api/account",{credentials:"include"}).then(async r=>{if(!r.ok)throw new Error();const d=await r.json();setUser(d.user);setProfile({...d.profile,username:d.user.name});localStorage.setItem("gutheb-user",JSON.stringify(d.user));localStorage.setItem("gutheb-profile",JSON.stringify(d.profile||{}));return fetch("/api/account",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"me"})})}).then(r=>r.ok?r.json():null).then(d=>{if(d?.repos){setRepos(d.repos);localStorage.setItem("gutheb-repos-v2",JSON.stringify(d.repos));const m=location.pathname.match(/^\/([^/]+)\/([^/]+)\.gut\/?$/);if(m){const r=d.repos.find(x=>x.name===decodeURIComponent(m[2])&&(x.owner||d.user?.name)===decodeURIComponent(m[1]));if(r){setSelectedRepo({...r,currentBranch:r.currentBranch||"main"});setRepoTab("code");setTree(Object.keys(r.files||{}).map(path=>({path,type:"blob"})));}}}}).catch(()=>{});
   },[]);
 
-  function go(p){ location.hash="/"+p; setPage(p); setNotice(""); }
+  function go(p){ if(String(p).startsWith("codespace/")){history.pushState({}, "", "/"+p);setPage(p);setNotice("");return;} location.hash="/"+p; setPage(p); setNotice(""); }
   function flash(msg){setNotice(msg);setTimeout(()=>setNotice(""),2500);}
   useEffect(()=>localStorage.setItem("gutheb-repos-v2",JSON.stringify(repos)),[repos]);
   useEffect(()=>localStorage.setItem("gutheb-pinned",JSON.stringify(pinned)),[pinned]);
@@ -218,7 +218,7 @@ function App(){
         {page==="actions"&&<Actions repo={selectedRepo} flash={flash}/>}
         {page==="projects"&&<Projects/>}
         {page==="discussions"&&<Discussions/>}
-        {page==="codespaces"&&<Codespaces repos={repos.filter(r=>!r.owner||r.owner===user.name)} user={user} saveLocalRepo={saveLocalRepo} flash={flash}/>}
+        {page==="codespaces"&&<Codespaces repos={repos.filter(r=>!r.owner||r.owner===user.name)} user={user} saveLocalRepo={saveLocalRepo} flash={flash} go={go}/>}\n        {page.startsWith("codespace/")&&<Codespaces repos={repos.filter(r=>!r.owner||r.owner===user.name)} user={user} saveLocalRepo={saveLocalRepo} flash={flash} go={go} sessionId={decodeURIComponent(page.split("/session/")[1]||"")} sessionPerson={decodeURIComponent(page.split("/")[1]||user.name)}/>}
         {page==="marketplace"&&<Marketplace repos={repos} setRepos={setRepos} selectedRepo={selectedRepo} saveLocalRepo={saveLocalRepo} user={user} flash={flash}/>}
         {page==="explore"&&<Explore/>}
         {page==="notifications"&&<Notifications/>}
@@ -320,36 +320,23 @@ function Actions({repo,flash}){
 }
 function Projects(){return <Page title="Projects" subtitle="Track work with tables, boards, and roadmaps."><div className="board"><div>Todo</div><div>In progress</div><div>Done</div><article>Plan next release</article><article>Build issue workflow</article><article>Ship first version</article></div></Page>}
 function Discussions(){return <Page title="Discussions" subtitle="Community conversations and long-form collaboration."><Panel title="Recent discussions"><Activity text="Welcome to the community"/><Activity text="Share what you are building"/><Activity text="Feature ideas"/></Panel></Page>}
-function Codespaces({repos,user,saveLocalRepo,flash}){
+function Codespaces({repos,user,saveLocalRepo,flash,go,sessionId:routeSessionId,sessionPerson}){
   const [repoName,setRepoName]=useState(()=>localStorage.getItem("gutheb-codespace-repo")||repos[0]?.name||"");
-  const [open,setOpen]=useState(()=>localStorage.getItem("gutheb-codespace-open")==="1");
+  const [open,setOpen]=useState(!!routeSessionId||localStorage.getItem("gutheb-codespace-open")==="1");
+  const [sessionId,setSessionId]=useState(()=>routeSessionId||localStorage.getItem("gutheb-codespace-session")||"");
   const [path,setPath]=useState(()=>localStorage.getItem("gutheb-codespace-file")||"");
-  const [draft,setDraft]=useState("");
-  const [terminal,setTerminal]=useState("");
-  const [cmd,setCmd]=useState("");
-  const repo=repos.find(r=>r.name===repoName)||null;
-  const files=repo?.files||{};
+  const [draft,setDraft]=useState(""); const [terminal,setTerminal]=useState(""); const [cmd,setCmd]=useState("");
+  const repo=repos.find(r=>r.name===repoName)||null; const files=repo?.files||{};
+  useEffect(()=>{if(routeSessionId){setSessionId(routeSessionId);setOpen(true);localStorage.setItem("gutheb-codespace-session",routeSessionId)}},[routeSessionId]);
   useEffect(()=>{if(path&&files[path]!==undefined)setDraft(String(files[path]||""));},[path,repoName]);
-  const start=()=>{if(!repo)return flash("Select a repository first");localStorage.setItem("gutheb-codespace-repo",repo.name);localStorage.setItem("gutheb-codespace-open","1");setOpen(true);const first=Object.keys(repo.files||{})[0]||"";setPath(first);localStorage.setItem("gutheb-codespace-file",first);};
+  const start=()=>{if(!repo)return flash("Select a repository first");const id=crypto.randomUUID();localStorage.setItem("gutheb-codespace-repo",repo.name);localStorage.setItem("gutheb-codespace-open","1");localStorage.setItem("gutheb-codespace-session",id);const first=Object.keys(repo.files||{})[0]||"";setPath(first);localStorage.setItem("gutheb-codespace-file",first);setSessionId(id);setOpen(true);go&&go("codespace/"+encodeURIComponent(user.name)+"/session/"+encodeURIComponent(id));};
+  const back=()=>{setOpen(false);localStorage.setItem("gutheb-codespace-open","0");go&&go("codespaces")};
   const save=()=>{if(!repo||!path)return;saveLocalRepo({...repo,files:{...(repo.files||{}),[path]:draft}});flash("Codespace changes saved");};
-  const run=()=>{const c=cmd.trim();if(!c)return;let out="";
-    if(c==="pwd")out="/workspace/"+(repo?.name||"repository");
-    else if(c==="ls"||c==="ls -la")out=Object.keys(files).join("\\n")||"(empty)";
-    else if(c==="clear"){setTerminal("");setCmd("");return;}
-    else if(c==="git status")out="On branch main\\nChanges are shown in the editor.";
-    else if(c.startsWith("cat ")){const p=c.slice(4).trim();out=files[p]!==undefined?String(files[p]):"cat: "+p+": No such file";}
-    else out="GutHeb Codespaces: command available in browser workspace only. Linux execution is not connected yet.";
-    setTerminal(x=>x+"$ "+c+"\\n"+out+"\\n");setCmd("");
-  };
+  const run=()=>{const c=cmd.trim();if(!c)return;let out="";if(c==="pwd")out="/workspace/"+(repo?.name||"repository");else if(c==="ls"||c==="ls -la")out=Object.keys(files).join("\\n")||"(empty)";else if(c==="clear"){setTerminal("");setCmd("");return}else if(c==="git status")out="On branch main\\nChanges are shown in the editor.";else if(c.startsWith("cat ")){const p=c.slice(4).trim();out=files[p]!==undefined?String(files[p]):"cat: "+p+": No such file"}else out="GutHeb Codespaces: browser workspace only. Linux execution is not connected yet.";setTerminal(x=>x+"$ "+c+"\\n"+out+"\\n");setCmd("")};
   if(!open)return <Page title="Codespaces" subtitle="Cloud development environments for your repositories."><Panel title="Create a codespace"><div className="codespaceCreate"><div><h2>GutHeb Codespaces</h2><p>Open a repository in a persistent development workspace with files, editor, terminal and preview.</p></div><label>Repository<select value={repoName} onChange={e=>setRepoName(e.target.value)}>{repos.map(r=><option key={r.name} value={r.name}>{r.owner||user.name}/{r.name}</option>)}</select></label><button className="primary" onClick={start} disabled={!repo}>Create codespace</button></div></Panel></Page>;
-  return <Page title="Codespaces" subtitle={repo?(repo.owner||user.name)+"/"+repo.name:"Workspace"} action={<button onClick={()=>{setOpen(false);localStorage.setItem("gutheb-codespace-open","0")}}>Back</button>}>
-    <div className="codespaceShell">
-      <aside className="codespaceFiles"><div className="codespacePanelHead">EXPLORER</div>{Object.keys(files).map(p=><button className={path===p?"active":""} key={p} onClick={()=>{setPath(p);localStorage.setItem("gutheb-codespace-file",p)}}>◇ {p}</button>)}{!Object.keys(files).length&&<span className="muted">No files</span>}</aside>
-      <section className="codespaceCenter"><div className="codespaceTabs">{path||"Welcome"}{path&&<button onClick={save}>Save</button>}</div>{path?<textarea className="codespaceEditor" value={draft} onChange={e=>setDraft(e.target.value)} spellCheck={false}/>:<div className="codespaceWelcome"><h2>Welcome to GutHeb Codespaces</h2><p>Select a file from Explorer to start editing.</p></div>}<div className="codespaceTerminal"><div className="codespacePanelHead">TERMINAL</div><pre>{terminal||"GutHeb terminal ready. Try: pwd, ls, cat README.md, git status"}</pre><form onSubmit={e=>{e.preventDefault();run()}}><span>$</span><input value={cmd} onChange={e=>setCmd(e.target.value)} placeholder="Enter command"/></form></div></section>
-      <aside className="codespacePreview"><div className="codespacePanelHead">PREVIEW</div>{path?.toLowerCase().endsWith(".html")?<iframe title="GutHeb preview" srcDoc={draft}/>:<div className="codespacePreviewEmpty"><b>Preview</b><span>Open an HTML file to preview it here.</span></div>}</aside>
-    </div>
-  </Page>
+  return <Page title="Codespace" subtitle={(sessionPerson||user.name)+"/"+(repo?.name||repoName)+" · session "+(sessionId||"")} action={<button onClick={back}>Back</button>}><div className="codespaceShell"><aside className="codespaceFiles"><div className="codespacePanelHead">EXPLORER</div>{Object.keys(files).map(p=><button className={path===p?"active":""} key={p} onClick={()=>{setPath(p);localStorage.setItem("gutheb-codespace-file",p)}}>◇ {p}</button>)}{!Object.keys(files).length&&<span className="muted">No files</span>}</aside><section className="codespaceCenter"><div className="codespaceTabs">{path||"Welcome"}{path&&<button onClick={save}>Save</button>}</div>{path?<textarea className="codespaceEditor" value={draft} onChange={e=>setDraft(e.target.value)} spellCheck={false}/>:<div className="codespaceWelcome"><h2>Welcome to GutHeb Codespaces</h2><p>Select a file from Explorer to start editing.</p></div>}<div className="codespaceTerminal"><div className="codespacePanelHead">TERMINAL</div><pre>{terminal||"GutHeb terminal ready. Try: pwd, ls, cat README.md, git status"}</pre><form onSubmit={e=>{e.preventDefault();run()}}><span>$</span><input value={cmd} onChange={e=>setCmd(e.target.value)} placeholder="Enter command"/></form></div></section><aside className="codespacePreview"><div className="codespacePanelHead">PREVIEW</div>{path?.toLowerCase().endsWith(".html")?<iframe title="GutHeb preview" srcDoc={draft}/>:<div className="codespacePreviewEmpty"><b>Preview</b><span>Open an HTML file to preview it here.</span></div>}</aside></div></Page>
 }
+
 function Marketplace({repos,setRepos,selectedRepo,saveLocalRepo,user,flash}){
   const [tab,setTab]=useState("actions");
   const [q,setQ]=useState("");
