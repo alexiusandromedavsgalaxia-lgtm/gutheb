@@ -93,7 +93,7 @@ async function execute({request,env,body}){
     const target=p.target.replace(/^\.\//,"").replace(/^\/+|\/+$/g,"");
     if(p.kind==="carpeta"){
       await d.batch([
-        d.prepare("DELETE FROM repo_files WHERE repo_id=? AND (path=? OR path LIKE ?||'/%')").bind(targetRepo.id,targetRepo.id,target),
+        d.prepare("DELETE FROM repo_files WHERE repo_id=? AND (path=? OR path LIKE ?||'/%')").bind(targetRepo.id,target,target),
         d.prepare("DELETE FROM repo_folders WHERE repo_id=? AND (path=? OR path LIKE ?||'/%')").bind(targetRepo.id,target,target)
       ]);
     }else{
@@ -121,6 +121,7 @@ export async function onRequestGet({request,env}){
   const u=new URL(request.url),archive=u.searchParams.get("archive");if(!archive)return json({protocol:"GUT/1",status:"ok",endpoint:"/api/gut"});
   const user=await currentUser(request,env);if(!user)return json({error:"Not authenticated."},401);const d=db(env);if(!d)return json({error:"REPOS_DB/repositories is not bound."},503);await schema(d);
   const a=await d.prepare("SELECT name,payload FROM gut_archives WHERE owner_id=? AND id=?").bind(user.id,archive).first();if(!a)return json({error:"Archive not found."},404);
-  return new Response(a.payload,{status:200,headers:{"Content-Type":"application/gut+json","Content-Disposition:'attachment; filename="'+a.name.replace(/[^a-z0-9._-]+/gi,"_")+'.gutarchive.json"',"Cache-Control":"no-store"}});
+  const filename=a.name.replace(/[^a-z0-9._-]+/gi,"_")+".gutarchive.json";
+  return new Response(a.payload,{status:200,headers:{"Content-Type":"application/gut+json","Content-Disposition":"attachment; filename=\""+filename+"\"","Cache-Control":"no-store"}});
 }
 export async function onRequestOptions(){return new Response(null,{status:204,headers:{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"content-type","Access-Control-Allow-Methods":"GET,POST,OPTIONS"}})}
