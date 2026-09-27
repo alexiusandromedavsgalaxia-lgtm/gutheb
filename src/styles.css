@@ -194,3 +194,36 @@ textarea{min-height:110px;resize:vertical}
   .actionLogs{min-height:300px}
   .page{padding-bottom:35px}
 }
+
+
+/* Native GutHeb Marketplace */
+.marketHero{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:28px;border:1px solid var(--border,#30363d);border-radius:16px;background:linear-gradient(135deg,rgba(255,255,255,.045),rgba(255,255,255,.015));margin-bottom:18px}
+.marketHero h2{margin:6px 0 8px;font-size:26px}
+.marketHero p{margin:0;color:var(--muted,#8b949e);max-width:720px}
+.marketEyebrow{font-size:11px;font-weight:800;letter-spacing:.12em;color:#8b949e}
+.marketTabs{display:flex;gap:4px;border-bottom:1px solid var(--border,#30363d);margin-bottom:16px}
+.marketTabs button,.marketCategories button{border:0;background:transparent;color:var(--muted,#8b949e);padding:10px 13px;border-radius:8px;cursor:pointer}
+.marketTabs button.sel,.marketCategories button.sel{background:rgba(255,255,255,.08);color:var(--text,#f0f6fc)}
+.marketToolbar{display:flex;gap:12px;align-items:center;margin-bottom:18px}
+.marketToolbar>input{flex:1;min-width:180px}
+.marketCategories{display:flex;gap:4px;overflow:auto;white-space:nowrap}
+.marketActionGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.marketActionCard{display:flex;gap:16px;padding:20px;border:1px solid var(--border,#30363d);border-radius:14px;background:rgba(255,255,255,.02);min-width:0}
+.marketActionIcon{width:44px;height:44px;display:grid;place-items:center;border-radius:12px;background:rgba(255,255,255,.08);font-size:20px;flex:none}
+.marketActionBody{min-width:0;flex:1}
+.marketActionTitle{display:flex;align-items:center;gap:8px}
+.marketActionTitle h3{margin:0;font-size:17px}
+.marketActionBody p{margin:7px 0;color:var(--muted,#8b949e)}
+.marketActionBody small{color:var(--muted,#8b949e)}
+.verified{font-size:11px;padding:3px 7px;border-radius:999px;background:rgba(46,160,67,.16);color:#56d364}
+.marketActionFooter{display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding-top:12px;border-top:1px solid var(--border,#30363d);color:var(--muted,#8b949e);font-size:12px}
+.marketActionFooter button{border:1px solid var(--border,#30363d);background:#fff;color:#111;border-radius:7px;padding:7px 13px;font-weight:700;cursor:pointer}
+@media(max-width:720px){
+  .marketHero{align-items:flex-start;flex-direction:column;padding:20px}
+  .marketHero .primary{width:100%}
+  .marketToolbar{display:block}
+  .marketCategories{margin-top:10px}
+  .marketActionGrid{grid-template-columns:1fr}
+  .marketActionCard{padding:16px}
+}
+
