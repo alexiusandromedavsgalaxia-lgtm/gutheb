@@ -101,7 +101,7 @@ function App(){
 
   return <div className="gh">
     <header className="top">
-      <button className="logo" onClick={()=>go("home")} aria-label="GutHeb home">◉</button>
+      <button className="logo" onClick={()=>go("home")} aria-label="GutHeb home"><img src="/gutheb-logo.svg" alt="" /></button>
       <div className="wordmark" onClick={()=>go("home")}>GutHeb</div>
       <div className="search"><span>⌕</span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search or jump to..." /><kbd>/</kbd></div>
       <nav className="topnav">
@@ -113,14 +113,14 @@ function App(){
     <div className="appbody">
       <aside className="leftnav">
         <button className="newrepo" onClick={()=>go("new")}>＋ New</button>
-        <Nav icon="⌂" text="Home" page="home" go={go}/>
-        <Nav icon="◈" text="Issues" page="issues" go={go}/>
-        <Nav icon="⑂" text="Pull requests" page="pulls" go={go}/>
-        <Nav icon="⚡" text="Actions" page="actions" go={go}/>
-        <Nav icon="▦" text="Projects" page="projects" go={go}/>
-        <Nav icon="◒" text="Discussions" page="discussions" go={go}/>
-        <Nav icon="▣" text="Codespaces" page="codespaces" go={go}/>
-        <Nav icon="◆" text="Marketplace" page="marketplace" go={go}/><button className="navitem aiNav" onClick={()=>setAiOpen(true)}><span>✦</span> GutHeb AI</button>
+        <Nav icon="/gutheb-icons/home.svg" text="Home" page="home" go={go}/>
+        <Nav icon="/gutheb-icons/issues.svg" text="Issues" page="issues" go={go}/>
+        <Nav icon="/gutheb-icons/pulls.svg" text="Pull requests" page="pulls" go={go}/>
+        <Nav icon="/gutheb-icons/actions.svg" text="Actions" page="actions" go={go}/>
+        <Nav icon="/gutheb-icons/projects.svg" text="Projects" page="projects" go={go}/>
+        <Nav icon="/gutheb-icons/discussions.svg" text="Discussions" page="discussions" go={go}/>
+        <Nav icon="/gutheb-icons/codespaces.svg" text="Codespaces" page="codespaces" go={go}/>
+        <Nav icon="/gutheb-icons/marketplace.svg" text="Marketplace" page="marketplace" go={go}/><button className="navitem aiNav" onClick={()=>setAiOpen(true)}><span className="navicon"><img src="/gutheb-icons/ai.svg" alt="" /></span> GutHeb AI</button>
         <div className="navsep"/>
         <small>Repositories</small>
         {repos.slice(0,8).map(r=><button className="repo-nav" key={r.name} onClick={()=>openRepo(r)}><span className="dot"/> {r.name}</button>)}
@@ -154,12 +154,12 @@ function App(){
   </div>
 }
 
-function Nav({icon,text,page,go}){return <button className="navitem" onClick={()=>go(page)}><span>{icon}</span>{text}</button>}
+function Nav({icon,text,page,go}){return <button className="navitem" onClick={()=>go(page)}><span className="navicon"><img src={icon} alt="" /></span>{text}</button>}
 
 function Auth({auth,setAuth,form,setForm,onLogin,onRegister}){
   const register=auth==="register";
   return <div className="auth">
-    <div className="auth-logo">◉</div><h1>GutHeb</h1><p>The open developer platform.</p>
+    <div className="auth-logo"><img src="/gutheb-logo.svg" alt="GutHeb" /></div><h1>GutHeb</h1><p>The open developer platform.</p>
     <form onSubmit={register?onRegister:onLogin} className="authcard">
       <div className="authswitch"><button type="button" className={!register?"sel":""} onClick={()=>setAuth("login")}>Sign in</button><button type="button" className={register?"sel":""} onClick={()=>setAuth("register")}>Create account</button></div>
       {register&&<label>Username<input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label>}
