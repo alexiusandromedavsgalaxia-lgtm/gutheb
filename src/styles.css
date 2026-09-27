@@ -695,3 +695,30 @@ textarea{min-height:110px;resize:vertical}
 .asideAction{width:100%;margin-top:8px;padding:6px 9px;font-size:12px;text-align:left}
 .repoRelease{display:flex;flex-direction:column;gap:3px;padding:7px 0}
 .repoRelease small{color:#8b949e}
+
+
+/* GitHub repository importer */
+.repoPageActions{display:flex;align-items:center;gap:8px}
+.importModalBackdrop{position:fixed;inset:0;z-index:1200;background:rgba(1,5,10,.78);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:20px}
+.importModal{width:min(680px,100%);box-sizing:border-box;background:#0d1117;border:1px solid #30363d;border-radius:14px;box-shadow:0 30px 100px #000b;padding:24px}
+.importModalHead{display:flex;justify-content:space-between;gap:20px;margin-bottom:22px}
+.importModalHead h2{margin:6px 0;font-size:24px;color:#f0f6fc}
+.importModalHead p{margin:0;color:#8b949e;font-size:13px}
+.importModalHead>button{width:34px;height:34px;border:1px solid #30363d;border-radius:7px;background:#161b22;color:#8b949e;font-size:22px;cursor:pointer}
+.importModal form{display:flex;flex-direction:column;gap:14px}
+.importModal label{display:flex;flex-direction:column;gap:6px;color:#f0f6fc;font-size:12px;font-weight:600}
+.importModal input{box-sizing:border-box;width:100%;height:38px;padding:8px 10px;border:1px solid #30363d;border-radius:6px;background:#0d1117;color:#f0f6fc;outline:none}
+.importModal input:focus{border-color:#58a6ff;box-shadow:0 0 0 2px #1f6feb33}
+.importGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.importNote{padding:11px 12px;border:1px solid #21262d;border-radius:7px;background:#161b22;color:#8b949e;font-size:12px;line-height:1.5}
+.importModalActions{display:flex;justify-content:flex-end;gap:8px;padding-top:4px}
+.importModalActions button{min-height:34px;padding:6px 12px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#f0f6fc}
+.importModalActions .primary{background:#238636;border-color:#2ea043;color:#fff}
+.repoPageActions button{min-height:32px;padding:5px 11px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#f0f6fc;font-size:12px}
+.repoPageActions .primary{background:#238636;border-color:#2ea043;color:#fff}
+@media(max-width:650px){
+  .repoPageActions{width:100%}
+  .repoPageActions button{flex:1}
+  .importGrid{grid-template-columns:1fr}
+  .importModal{padding:18px;border-radius:11px}
+}
