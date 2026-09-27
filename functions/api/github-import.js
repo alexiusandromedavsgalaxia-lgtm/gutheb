@@ -32,24 +32,26 @@ export async function onRequestPost({request,env}){
     const meta=await gh("/repos/"+encodeURIComponent(parsed.owner)+"/"+encodeURIComponent(parsed.repo));
     if(meta.private)return json({error:"Private GitHub repositories cannot be imported without GitHub account authorization."},403);
     const branch=String(body.branch||meta.default_branch||"main");
-    const tree=await gh("/repos/"+encodeURIComponent(parsed.owner)+"/"+encodeURIComponent(parsed.repo)+"/git/trees/"+encodeURIComponent(branch)+"?recursive=1");
-    if(tree.truncated)return json({error:"This GitHub repository is too large to import in one operation."},413);
-    const all=(tree.tree||[]).filter(x=>x.type==="blob"&&x.path);
-    if(all.length>500)return json({error:"This repository has more than 500 files. The importer currently accepts up to 500 files."},413);
-    const files={};const folders=new Set();let total=0;
-    for(const entry of all){
-      if(entry.size&&entry.size>1024*1024)continue;
-      const blob=await gh("/repos/"+encodeURIComponent(parsed.owner)+"/"+encodeURIComponent(parsed.repo)+"/git/blobs/"+encodeURIComponent(entry.sha));
-      let content="";
-      if(blob.encoding==="base64"){
-        const raw=atob(String(blob.content||"").replace(/\s/g,"")),bytes=Uint8Array.from(raw,c=>c.charCodeAt(0));
-        if(bytes.some(b=>b===0))continue;content=new TextDecoder().decode(bytes);
-      }else content=String(blob.content||"");
-      total+=content.length;if(total>10*1024*1024)break;
-      files[entry.path]=content;
-      const parts=entry.path.split("/");for(let i=1;i<parts.length;i++)folders.add(parts.slice(0,i).join("/"));
+    const archive=await fetch("https://codeload.github.com/"+encodeURIComponent(parsed.owner)+"/"+encodeURIComponent(parsed.repo)+"/tar.gz/"+encodeURIComponent(branch),{headers:{"User-Agent":"GutHeb-Repository-Importer"}});
+    if(!archive.ok)throw new Error("GitHub could not provide that branch as an archive.");
+    const compressed=await archive.arrayBuffer();
+    const decompressed=await new Response(new Blob([compressed]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+    const bytes=new Uint8Array(decompressed),decoder=new TextDecoder(),files={},folders=new Set();let total=0,count=0;
+    const readField=(pos,len)=>decoder.decode(bytes.slice(pos,pos+len)).replace(/\\0/g,"").trim();
+    for(let pos=0;pos+512<=bytes.length;){
+      const name=readField(pos,100);if(!name)break;
+      const sizeText=readField(pos+124,12).replace(/[^0-7]/g,"");const size=parseInt(sizeText||"0",8)||0;
+      const type=String.fromCharCode(bytes[pos+156]||48);const dataStart=pos+512;
+      const blocks=Math.ceil(size/512);pos=dataStart+blocks*512;
+      if(type==="5"||type==="2")continue;
+      const path=name.replace(/^[^/]+\\//,"").replace(/^\\.\\//,"");if(!path)continue;
+      if(size>1024*1024)continue;
+      const data=bytes.slice(dataStart,dataStart+size);if(data.some(b=>b===0))continue;
+      const content=decoder.decode(data);total+=content.length;if(total>10*1024*1024)break;
+      files[path]=content;count++;if(count>500)return json({error:"This repository has more than 500 importable files."},413);
+      const parts=path.split("/");for(let i=1;i<parts.length;i++)folders.add(parts.slice(0,i).join("/"));
     }
-    const repos=dbs(env);if(!repos)return json({error:"REPOS_DB is not bound to this Cloudflare project."},503);
+    const repos=dbs(env);if(!repos)return json({error:"The repositories D1 binding is not configured."},503);
     const ownerId=currentUser.id;const ownerUsername=currentUser.username;
     const repoName=String(body.targetName||meta.name||parsed.repo).trim();
     if(!/^[A-Za-z0-9._-]+$/.test(repoName))return json({error:"Invalid GutHeb repository name."},400);
