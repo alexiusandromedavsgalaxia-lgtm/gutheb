@@ -52,8 +52,9 @@ export async function onRequestGet({request,env}){
 }
 
 export async function onRequestPost({request,env}){
-  const db=env.ACTIONS_DB;
-  if(!db)return json({error:"ACTIONS_DB is not bound. Bind it to the guthebactions D1 database."},503);
+  const db=env.actions;
+  if(!db)return json({error:"env.actions is not bound to the guthebactions D1 database."},503);
+  await ensureSchema(db);
   const user=await currentUser(request,env);
   if(!user)return json({error:"Not authenticated."},401);
   let b={};try{b=await request.json()}catch{}
