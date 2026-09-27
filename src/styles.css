@@ -424,3 +424,38 @@ textarea{min-height:110px;resize:vertical}
  .marketEditFields{grid-template-columns:1fr}
  .marketEditFields textarea{grid-column:auto}
 }
+
+/* Marketplace V2: explicit deployment marker and final visual layer */
+.marketplaceV2{position:relative;isolation:isolate}
+.marketplaceV2 .marketHero{overflow:hidden;border:1px solid #263448;border-radius:22px;background:radial-gradient(circle at 88% 18%,#23385a 0,transparent 28%),linear-gradient(145deg,#111a28,#0b111a 72%);box-shadow:0 24px 70px rgba(0,0,0,.28);padding:32px 34px}
+.marketplaceV2 .marketHero:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,#ffffff03);pointer-events:none}
+.marketplaceV2 .marketHero h2{font-size:32px;margin:8px 0 6px;letter-spacing:-1px}
+.marketplaceV2 .marketHero p{max-width:650px;font-size:13px}
+.marketplaceV2 .marketHero .primary{padding:11px 16px;border-radius:10px}
+.marketplaceV2 .marketInstallTarget{border:1px solid #263448;background:#0d1520;border-radius:14px;padding:14px 16px;box-shadow:0 8px 30px #00000018}
+.marketplaceV2 .marketTabs{margin-top:24px;border-bottom:1px solid #263448}
+.marketplaceV2 .marketTabs button{padding:12px 4px;font-weight:700}
+.marketplaceV2 .marketSearch{max-width:none;margin:0 0 16px}
+.marketplaceV2 .marketSearch input{height:44px;border-radius:11px;background:#0b1119;border-color:#29384d}
+.marketplaceV2 .marketGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.marketplaceV2 .marketActionCard{min-height:150px;padding:20px;border-radius:16px;border-color:#263448;background:linear-gradient(145deg,#111a25,#0c121a);box-shadow:0 8px 24px #00000016}
+.marketplaceV2 .marketActionCard:hover{transform:translateY(-2px);border-color:#496384;background:#121c29;box-shadow:0 14px 34px #00000028}
+.marketplaceV2 .marketActionIcon{width:46px;height:46px;border-radius:13px;background:#17263a;border-color:#30445f;color:#b9cdf0}
+.marketplaceV2 .marketActionHead h3{font-size:17px;letter-spacing:-.2px}
+.marketplaceV2 .marketActionHead button{border-radius:9px;background:#e9f0fb;color:#101722;font-weight:800;padding:8px 12px}
+.marketplaceV2 .marketActionBody p{font-size:13px;line-height:1.55;color:#a0adbd}
+.marketplaceV2 .marketActionFooter{margin-top:15px;padding-top:11px;border-top:1px solid #202c3b}
+.marketplaceV2 .marketActionFooter span{font-weight:700;color:#91b2ef}
+.marketplaceV2 .marketEmpty{border-color:#2b3a4f;background:linear-gradient(145deg,#0d1520,#0a1017);min-height:340px}
+.marketplaceV2 .marketModalBackdrop{background:rgba(1,5,10,.84);backdrop-filter:blur(12px);padding:20px}
+.marketplaceV2 .marketActionModal{width:min(1080px,100%);border-color:#34445b;border-radius:22px;background:linear-gradient(160deg,#101925,#0a1017);box-shadow:0 35px 120px #000b}
+.marketplaceV2 .marketModalTop{padding-bottom:4px}
+.marketplaceV2 .marketModalTop h2{font-size:30px}
+.marketplaceV2 .marketMetaGrid>div{background:#0d1621;border-color:#27364a;padding:14px}
+.marketplaceV2 .marketCodeHeader{margin-top:24px;padding:11px 0;border-top:1px solid #253347}
+.marketplaceV2 .marketDetailCode{background:#070c12;border-color:#29384c;border-radius:13px;min-height:400px;box-shadow:inset 0 1px 0 #ffffff05}
+.marketplaceV2 .marketModalActions{padding-top:14px;border-top:1px solid #253347}
+.marketplaceV2 .marketModalActions button{border-radius:9px}
+.marketplaceV2 .marketPublisher{border-color:#29384c;background:linear-gradient(145deg,#101925,#0b1119);border-radius:18px}
+@media(max-width:800px){.marketplaceV2 .marketGrid{grid-template-columns:1fr}.marketplaceV2 .marketHero{padding:24px}.marketplaceV2 .marketMetaGrid{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.marketplaceV2 .marketMetaGrid{grid-template-columns:1fr}.marketplaceV2 .marketHero h2{font-size:26px}}
