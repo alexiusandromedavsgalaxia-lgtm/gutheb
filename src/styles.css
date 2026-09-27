@@ -660,3 +660,29 @@ textarea{min-height:110px;resize:vertical}
   .repoFileRow time{display:block}
   .githubReadme .readmeBody{padding:22px}
 }
+
+
+/* Repository navigation and GitHub-style dropdowns */
+.repoToolbarRight{display:flex;align-items:center;gap:8px}
+.repoDropdown{position:relative}
+.repoMenu{position:absolute;right:0;top:calc(100% + 5px);z-index:50;min-width:210px;padding:6px;background:#161b22;border:1px solid #30363d;border-radius:6px;box-shadow:0 8px 24px #0008}
+.repoMenu button{display:block;width:100%;min-height:34px;padding:7px 10px;border:0;background:transparent;color:#f0f6fc;text-align:left;border-radius:4px;font-size:12px}
+.repoMenu button:hover{background:#21262d}
+.repoMenuTitle{padding:7px 10px 5px;color:#8b949e;font-size:11px;font-weight:600}
+.repoCodeMenu{min-width:300px}
+.cloneRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 10px 2px;color:#8b949e;font-size:11px}
+.cloneRow button{width:auto;min-height:25px;padding:3px 8px;background:#21262d;border:1px solid #30363d}
+.repoCodeMenu code{display:block;margin:0 10px 8px;padding:8px;background:#0d1117;border:1px solid #30363d;border-radius:5px;color:#8b949e;overflow:auto;white-space:nowrap;font-size:11px}
+.repoBreadcrumbs{display:flex;align-items:center;gap:7px;min-height:44px;padding:0 14px;border:1px solid #30363d;border-bottom:0;border-radius:6px 6px 0 0;background:#161b22;font-size:13px;overflow:auto}
+.repoBreadcrumbs button{border:0;background:transparent;color:#58a6ff;padding:0;white-space:nowrap;cursor:pointer;font:inherit}
+.repoBreadcrumbs button:hover{text-decoration:underline}
+.repoBreadcrumbs span{color:#8b949e}
+.repoBreadcrumbs+.repoFileCard{border-radius:0 0 6px 6px}
+.repoParentRow{background:#0f141b}
+.repoParentRow:hover{background:#161b22}
+@media(max-width:650px){
+  .repoCodeMenu{min-width:270px;right:auto;left:auto}
+  .repoToolbarRight{width:100%}
+  .repoToolbarRight>*{flex:1}
+  .repoDropdown>button{width:100%}
+}
