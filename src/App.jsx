@@ -411,7 +411,7 @@ function Repo({repo,tab,setTab,tree,file,openFile,go,packages,user,repoBranches,
   const readme=repo.files?.["README.md"]||"";
   const allPaths=Object.keys(repo.files||{});
   const routeParts=location.hash.replace(/^#\/?/,"").split("/");
-  const pathStart=routeParts.indexOf("tree")>=0?routeParts.indexOf("tree")+3:routeParts.indexOf("blob")>=0?routeParts.indexOf("blob")+3:-1;
+  const pathStart=routeParts.indexOf("tree")>=0?routeParts.indexOf("tree")+2:routeParts.indexOf("blob")>=0?routeParts.indexOf("blob")+2:-1;
   const currentPath=pathStart>=0?decodeURIComponent(routeParts.slice(pathStart).join("/")):"";
   const prefix=currentPath?currentPath+"/":"";
   const directFolders=[...new Set(allPaths.map(p=>p.startsWith(prefix)?p.slice(prefix.length).split("/")[0]:"").filter(Boolean).filter(x=>x.includes(".")===false||allPaths.some(p=>p.startsWith(prefix+x+"/"))))];
