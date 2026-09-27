@@ -115,6 +115,7 @@ async function execute({request,env,body}){
     await actions.prepare("DELETE FROM actions WHERE id=?").bind(row.id).run();
     return json({ok:true,protocol:"GUT/1",operation:"delete",kind:"action",target:p.target});
   }
+  return json({error:"Unsupported GUT operation."},400);
 }
 export async function onRequestPost({request,env}){let body={};try{body=await request.json()}catch{}return execute({request,env,body})}
 export async function onRequestGet({request,env}){
