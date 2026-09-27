@@ -1,0 +1,362 @@
+* { box-sizing: border-box; }
+
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #f0f6fc;
+  background: #0d1117;
+  font-synthesis: none;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: #0d1117;
+}
+
+button, input { font: inherit; }
+
+button {
+  color: inherit;
+  border: 1px solid #30363d;
+  background: #21262d;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:hover { border-color: #8b949e; }
+
+a { color: #58a6ff; text-decoration: none; }
+
+.github-app { min-height: 100vh; }
+
+.topbar {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 12px 24px;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 20px;
+  white-space: nowrap;
+}
+
+.octocat {
+  width: 32px;
+  height: 32px;
+  border: 2px solid #f0f6fc;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+
+.global-search {
+  width: min(420px, 42vw);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  background: #0d1117;
+}
+
+.global-search input {
+  flex: 1;
+  min-width: 0;
+  color: #f0f6fc;
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+.global-search kbd {
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: #8b949e;
+}
+
+.top-links {
+  display: flex;
+  gap: 14px;
+  margin-left: auto;
+  font-size: 14px;
+}
+
+.top-links a { color: #f0f6fc; }
+
+main { max-width: 1500px; margin: 0 auto; }
+
+.repo-head {
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.repo-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 20px;
+}
+
+.repo-icon { color: #8b949e; }
+.public-pill {
+  border: 1px solid #30363d;
+  border-radius: 20px;
+  padding: 2px 8px;
+  color: #8b949e;
+  font-size: 12px;
+}
+
+.repo-actions, .toolbar-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.repo-actions button, .toolbar-actions button {
+  padding: 6px 12px;
+}
+
+.repo-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 24px;
+  border-bottom: 1px solid #30363d;
+  overflow-x: auto;
+}
+
+.repo-tabs button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 12px 14px;
+  color: #8b949e;
+}
+
+.repo-tabs button.active {
+  color: #f0f6fc;
+  border-bottom: 2px solid #f78166;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  min-height: 650px;
+}
+
+.sidebar {
+  border-right: 1px solid #30363d;
+  padding: 18px 12px;
+}
+
+.sidebar-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.branch { padding: 7px 10px; }
+
+.tree {
+  display: grid;
+  gap: 2px;
+}
+
+.tree-item {
+  border: 0;
+  background: transparent;
+  display: flex;
+  gap: 8px;
+  text-align: left;
+  padding: 7px 8px;
+  color: #c9d1d9;
+  overflow: hidden;
+}
+
+.tree-item span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-item.selected {
+  background: #1f6feb26;
+  color: #58a6ff;
+}
+
+.content {
+  min-width: 0;
+  padding: 18px 24px 48px;
+  position: relative;
+}
+
+.breadcrumb {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  padding-bottom: 16px;
+  color: #8b949e;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.repo-card, .code-shell {
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #0d1117;
+}
+
+.card-head, .file-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+}
+
+.card-head {
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+}
+
+.file-row {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #21262d;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.file-row:last-child { border-bottom: 0; }
+.file-name { color: #58a6ff; }
+
+.code-toolbar {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+}
+
+.run-button {
+  background: #238636 !important;
+  border-color: #2ea043 !important;
+  font-weight: 600;
+}
+
+.code-layout {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  overflow: auto;
+  background: #0d1117;
+}
+
+.line-numbers {
+  display: flex;
+  flex-direction: column;
+  padding: 16px 10px;
+  text-align: right;
+  color: #6e7681;
+  user-select: none;
+  background: #0d1117;
+  border-right: 1px solid #21262d;
+  font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.line-numbers span { height: 20px; }
+
+.code {
+  margin: 0;
+  padding: 16px;
+  min-width: max-content;
+  color: #e6edf3;
+  font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.runner {
+  border-top: 1px solid #30363d;
+  background: #010409;
+}
+
+.runner-head {
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid #30363d;
+}
+
+.runner-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.runner-grid > div {
+  min-width: 0;
+  padding: 16px;
+}
+
+.runner-grid > div + div {
+  border-left: 1px solid #30363d;
+}
+
+.runner h3 {
+  margin-top: 0;
+  font-size: 13px;
+  color: #8b949e;
+}
+
+.runner pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #c9d1d9;
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.muted { color: #8b949e; }
+.loading-overlay, .error {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #30363d;
+}
+
+.error { color: #ff7b72; border-color: #6e3030; }
+
+@media (max-width: 900px) {
+  .top-links { display: none; }
+  .workspace { grid-template-columns: 1fr; }
+  .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid #30363d;
+    max-height: 250px;
+    overflow: auto;
+  }
+}
+
+@media (max-width: 620px) {
+  .topbar, .repo-head, .content { padding-left: 14px; padding-right: 14px; }
+  .repo-head { align-items: flex-start; flex-direction: column; }
+  .global-search { width: 100%; }
+  .topbar { flex-wrap: wrap; }
+  .runner-grid { grid-template-columns: 1fr; }
+  .runner-grid > div + div {
+    border-left: 0;
+    border-top: 1px solid #30363d;
+  }
+}
