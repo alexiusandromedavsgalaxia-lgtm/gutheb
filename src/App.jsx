@@ -3,10 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 const OWNER = "alexiusandromedavsgalaxia-lgtm";
 const API = "https://api.github.com";
 
-const seedRepos = [
-  { name:"xreoct", visibility:"Public", language:"Xreoct", stars:0, forks:0, updated:"recently", description:"Xreoct language and game project." },
-  { name:"gutheb", visibility:"Public", language:"JavaScript", stars:0, forks:0, updated:"today", description:"A full GitHub-style web platform." }
-];
+const seedRepos = [];
 
 const seedIssues = [
   { id:1, title:"Welcome to GutHeb", state:"open", labels:["welcome"], author:"system" },
@@ -24,7 +21,7 @@ function App(){
   const [authForm,setAuthForm]=useState({name:"",email:"",password:""});
   const [notice,setNotice]=useState("");
   const [query,setQuery]=useState("");
-  const [repos,setRepos]=useState(seedRepos);
+  const [repos,setRepos]=useState(()=>JSON.parse(localStorage.getItem("gutheb-repos")||"null")||seedRepos);
   const [selectedRepo,setSelectedRepo]=useState(null);
   const [repoTab,setRepoTab]=useState("code");
   const [tree,setTree]=useState([]);
@@ -36,6 +33,9 @@ function App(){
   const [issueBody,setIssueBody]=useState("");
   const [profile,setProfile]=useState(()=>JSON.parse(localStorage.getItem("gutheb-profile")||"null")||{bio:"",location:"",website:""});
   const [settings,setSettings]=useState({theme:"dark",email:true,notifications:true});
+  const [pinned,setPinned]=useState(()=>JSON.parse(localStorage.getItem("gutheb-pinned")||"[]"));
+  const [aiOpen,setAiOpen]=useState(false); const [aiInput,setAiInput]=useState(""); const [aiMessages,setAiMessages]=useState([]);
+  const [packages,setPackages]=useState(()=>JSON.parse(localStorage.getItem("gutheb-packages")||"[]"));
 
   useEffect(()=>{
     const onHash=()=>setPage(location.hash.replace("#/","")||"home");
@@ -44,6 +44,12 @@ function App(){
 
   function go(p){ location.hash="/"+p; setPage(p); setNotice(""); }
   function flash(msg){setNotice(msg);setTimeout(()=>setNotice(""),2500);}
+  useEffect(()=>localStorage.setItem("gutheb-repos",JSON.stringify(repos)),[repos]);
+  useEffect(()=>localStorage.setItem("gutheb-pinned",JSON.stringify(pinned)),[pinned]);
+  useEffect(()=>localStorage.setItem("gutheb-packages",JSON.stringify(packages)),[packages]);
+  function togglePin(name){setPinned(x=>x.includes(name)?x.filter(v=>v!==name):[...x,name]);flash(pinned.includes(name)?"Repository unpinned":"Repository pinned");}
+  function askAI(e){e.preventDefault();if(!aiInput.trim())return;const q=aiInput.trim();const answer=aiAnswer(q);setAiMessages(x=>[...x,{role:"user",text:q},{role:"ai",text:answer}]);setAiInput("");}
+  function aiAnswer(q){const l=q.toLowerCase();if(l.includes("crear")&&l.includes("repo"))return "Puedo preparar un nuevo repositorio desde el panel de creación. Para seguridad, las escrituras reales necesitan un backend autenticado conectado a GutHeb.";if(l.includes("readme"))return "Puedo generar la estructura y el contenido de un README, además de sugerir licencia, topics y estructura de carpetas.";if(l.includes("licencia"))return "Puedo ayudarte a elegir y generar archivos de licencia conocidos, pero la aplicación debe guardar el archivo mediante su backend.";if(l.includes("paquete")||l.includes("package"))return "Puedo analizar package.json y mostrar dependencias y versiones cuando el repositorio las exponga.";return "Soy GutHeb AI. Puedo ayudarte a diseñar repositorios, README, issues, PRs, estructura de proyectos, código y automatizaciones. Para acciones reales sobre Git, necesito una API/backend con autenticación segura.";}
   function login(e){
     e.preventDefault();
     const name=authForm.name||authForm.email.split("@")[0]||"user";
@@ -55,7 +61,7 @@ function App(){
   function createRepo(e){
     e.preventDefault();
     if(!newRepo.name.trim()) return flash("Repository name is required");
-    const r={name:newRepo.name.trim(),visibility:newRepo.visibility,language:"",stars:0,forks:0,updated:"just now",description:newRepo.description};
+    const r={name:newRepo.name.trim(),visibility:newRepo.visibility,language:"",stars:0,forks:0,updated:"just now",description:newRepo.description,license:"MIT",readme:true,packages:[]};
     setRepos(x=>[r,...x]); setNewRepo({name:"",description:"",visibility:"Public"}); flash("Repository created"); go("repos");
   }
   async function openRepo(r){
@@ -114,7 +120,7 @@ function App(){
         <Nav icon="▦" text="Projects" page="projects" go={go}/>
         <Nav icon="◒" text="Discussions" page="discussions" go={go}/>
         <Nav icon="▣" text="Codespaces" page="codespaces" go={go}/>
-        <Nav icon="◆" text="Marketplace" page="marketplace" go={go}/>
+        <Nav icon="◆" text="Marketplace" page="marketplace" go={go}/><button className="navitem aiNav" onClick={()=>setAiOpen(true)}><span>✦</span> GutHeb AI</button>
         <div className="navsep"/>
         <small>Repositories</small>
         {repos.slice(0,8).map(r=><button className="repo-nav" key={r.name} onClick={()=>openRepo(r)}><span className="dot"/> {r.name}</button>)}
@@ -127,8 +133,8 @@ function App(){
 
       <main className="main">
         {notice&&<div className="notice">{notice}</div>}
-        {page==="home"&&<Home user={user} repos={filteredRepos} openRepo={openRepo} go={go}/>}
-        {page==="repos"&&<Repos repos={filteredRepos} openRepo={openRepo} go={go}/>}
+        {page==="home"&&<Home user={user} repos={filteredRepos} openRepo={openRepo} go={go} pinned={pinned} togglePin={togglePin}/>}
+        {page==="repos"&&<Repos repos={filteredRepos} openRepo={openRepo} go={go} pinned={pinned} togglePin={togglePin}/>}
         {page==="new"&&<NewRepo form={newRepo} setForm={setNewRepo} onSubmit={createRepo}/>}
         {page==="issues"&&<Issues issues={issues} user={user} title={issueTitle} setTitle={setIssueTitle} body={issueBody} setBody={setIssueBody} onSubmit={createIssue}/>}
         {page==="pulls"&&<Pulls prs={prs} setPRs={setPRs} user={user}/>}
@@ -139,10 +145,11 @@ function App(){
         {page==="marketplace"&&<Marketplace/>}
         {page==="explore"&&<Explore/>}
         {page==="notifications"&&<Notifications/>}
-        {page==="profile"&&<Profile user={user} profile={profile} setProfile={setProfile} save={saveProfile} repos={repos}/>}
+        {page==="profile"&&<Profile user={user} profile={profile} setProfile={setProfile} save={saveProfile} repos={repos} pinned={pinned} togglePin={togglePin}/>}
         {page==="settings"&&<Settings settings={settings} setSettings={setSettings} user={user}/>}
-        {routeRepo&&selectedRepo&&<Repo repo={selectedRepo} tab={repoTab} setTab={setRepoTab} tree={tree} file={file} openFile={openFile} go={go}/>}
+        {routeRepo&&selectedRepo&&<Repo repo={selectedRepo} tab={repoTab} setTab={setRepoTab} tree={tree} file={file} openFile={openFile} go={go} packages={packages}/>}
       </main>
+      {aiOpen&&<AIChat messages={aiMessages} input={aiInput} setInput={setAiInput} onSubmit={askAI} close={()=>setAiOpen(false)}/>} 
     </div>
   </div>
 }
@@ -166,12 +173,12 @@ function Auth({auth,setAuth,form,setForm,onLogin,onRegister}){
   </div>
 }
 
-function Home({user,repos,openRepo,go}){return <Page title={"Good to see you, "+user.name+" 👋"} subtitle="Your developer activity, repositories, and work in one place.">
-  <div className="grid2"><Panel title="Your repositories" action={<button onClick={()=>go("new")}>New</button>}>{repos.slice(0,6).map(r=><RepoMini key={r.name} r={r} open={openRepo}/>)}</Panel><Panel title="Latest activity"><Activity text="You signed in to GutHeb"/><Activity text="Repository activity will appear here"/><Activity text="Pull request events will appear here"/></Panel></div>
+function Home({user,repos,openRepo,go,pinned,togglePin}){return <Page title={"Good to see you, "+user.name+" 👋"} subtitle="Your developer activity, repositories, and work in one place.">
+  <div className="grid2"><Panel title="Your repositories" action={<button onClick={()=>go("new")}>New</button>}>{repos.slice(0,6).map(r=><RepoMini key={r.name} r={r} open={openRepo} pinned={pinned.includes(r.name)} pin={()=>togglePin(r.name)}/>)}</Panel><Panel title="Latest activity"><Activity text="You signed in to GutHeb"/><Activity text="Repository activity will appear here"/><Activity text="Pull request events will appear here"/></Panel></div>
   <Panel title="Quick start"><div className="quick"><button onClick={()=>go("new")}>Create a repository</button><button onClick={()=>go("issues")}>Create an issue</button><button onClick={()=>go("profile")}>Edit your profile</button><button onClick={()=>go("settings")}>Account settings</button></div></Panel>
 </Page>}
 
-function Repos({repos,openRepo,go}){return <Page title="Repositories" subtitle="Create, manage, and explore your repositories." action={<button className="primary" onClick={()=>go("new")}>New</button>}><div className="repo-list">{repos.map(r=><RepoCard key={r.name} r={r} open={openRepo}/>)}</div></Page>}
+function Repos({repos,openRepo,go,pinned,togglePin}){return <Page title="Repositories" subtitle="Create, manage, and explore your repositories." action={<button className="primary" onClick={()=>go("new")}>New</button>}><div className="repo-list">{repos.map(r=><RepoCard key={r.name} r={r} open={openRepo} pinned={pinned.includes(r.name)} pin={()=>togglePin(r.name)}/>)}</div></Page>}
 
 function NewRepo({form,setForm,onSubmit}){return <Page title="Create a new repository" subtitle="A repository contains all of your project's files, history, and collaboration tools."><form className="panel form" onSubmit={onSubmit}><label>Owner<input value="alexiusandromedavsgalaxia-lgtm" disabled/></label><label>Repository name<input autoFocus required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="my-project"/></label><label>Description <span className="muted">(optional)</span><textarea value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></label><label>Visibility<select value={form.visibility} onChange={e=>setForm({...form,visibility:e.target.value})}><option>Public</option><option>Private</option></select></label><button className="primary" type="submit">Create repository</button></form></Page>}
 
@@ -187,15 +194,18 @@ function Codespaces(){return <Page title="Codespaces" subtitle="Cloud developmen
 function Marketplace(){return <Page title="Marketplace" subtitle="Apps, actions, and developer tools."><div className="marketgrid">{["CI/CD","Code quality","Project management","Security","Deployment","AI tools"].map(x=><div className="market" key={x}><b>{x}</b><p>Explore integrations for {x.toLowerCase()}.</p><button>Explore</button></div>)}</div></Page>}
 function Explore(){return <Page title="Explore" subtitle="Discover projects, topics, and developers."><div className="grid2"><Panel title="Trending"><RepoMini r={{name:"awesome-project",description:"A trending open-source project",language:"JavaScript"}}/></Panel><Panel title="Topics"><div className="topics">{["javascript","react","cloud","ai","games","web"].map(x=><span key={x}>#{x}</span>)}</div></Panel></div></Page>}
 function Notifications(){return <Page title="Notifications"><Panel title="Inbox"><div className="empty">You're all caught up. 🎉</div></Panel></Page>}
-function Profile({user,profile,setProfile,save,repos}){return <Page title={user.name} subtitle={user.email}><form className="panel form" onSubmit={save}><label>Bio<textarea value={profile.bio} onChange={e=>setProfile({...profile,bio:e.target.value})}/></label><label>Location<input value={profile.location} onChange={e=>setProfile({...profile,location:e.target.value})}/></label><label>Website<input value={profile.website} onChange={e=>setProfile({...profile,website:e.target.value})}/></label><button className="primary">Save profile</button></form><Panel title="Repositories">{repos.map(r=><RepoMini r={r} key={r.name}/>)}</Panel></Page>}
+function Profile({user,profile,setProfile,save,repos,pinned,togglePin}){return <Page title={user.name} subtitle={user.email}><form className="panel form" onSubmit={save}><label>Bio<textarea value={profile.bio} onChange={e=>setProfile({...profile,bio:e.target.value})}/></label><label>Location<input value={profile.location} onChange={e=>setProfile({...profile,location:e.target.value})}/></label><label>Website<input value={profile.website} onChange={e=>setProfile({...profile,website:e.target.value})}/></label><button className="primary">Save profile</button></form><Panel title="Repositories">{repos.map(r=><RepoMini r={r} key={r.name} pinned={pinned.includes(r.name)} pin={()=>togglePin(r.name)}/>)}</Panel></Page>}
 function Settings({settings,setSettings,user}){return <Page title="Settings" subtitle="Manage your GutHeb account and preferences."><Panel title="Account"><div className="setting"><span><b>Username</b><small>{user.name}</small></span><button>Change</button></div><div className="setting"><span><b>Email</b><small>{user.email}</small></span><button>Manage</button></div></Panel><Panel title="Preferences"><div className="setting"><span><b>Theme</b><small>Dark developer theme</small></span><select value={settings.theme} onChange={e=>setSettings({...settings,theme:e.target.value})}><option>dark</option><option>light</option></select></div><div className="setting"><span><b>Email notifications</b><small>Receive product updates</small></span><input type="checkbox" checked={settings.email} onChange={e=>setSettings({...settings,email:e.target.checked})}/></div></Panel><Panel title="Danger zone"><button className="danger">Delete account</button></Panel></Page>}
 
-function Repo({repo,tab,setTab,tree,file,openFile,go}){return <Page title={repo.name} subtitle={repo.description} action={<div><button>☆ Star</button> <button>Fork</button></div>}><div className="repoTabs">{["code","issues","pulls","actions","projects","security","insights"].map(x=><button className={tab===x?"sel":""} onClick={()=>setTab(x)} key={x}>{x[0].toUpperCase()+x.slice(1)}</button>)}</div>{tab==="code"&&<div className="repoCode"><div className="filetree">{tree.length?tree.map(x=><button key={x.path} onClick={()=>x.type==="blob"&&openFile(x.path)}>{x.type==="tree"?"📁":"📄"} {x.path}</button>):<p className="muted">Repository tree loads from the public GitHub API when available.</p>}</div>{file?<pre className="fileview"><code>{file.content}</code></pre>:<div className="empty">Select a file to view its source.</div>}</div>}{tab!=="code"&&<Panel title={tab==="issues"?"Issues":tab==="pulls"?"Pull requests":tab}><div className="empty">This {tab} workspace is ready for repository-specific data.</div></Panel>}</Page>}
+function Repo({repo,tab,setTab,tree,file,openFile,go,packages}){return <Page title={repo.name} subtitle={repo.description} action={<div><button>☆ Star</button> <button>Fork</button></div>}><div className="repoTabs">{["code","issues","pulls","actions","projects","security","packages","insights"].map(x=><button className={tab===x?"sel":""} onClick={()=>setTab(x)} key={x}>{x[0].toUpperCase()+x.slice(1)}</button>)}</div>{tab==="code"&&<div className="repoCode"><div className="filetree">{tree.length?tree.map(x=><button key={x.path} onClick={()=>x.type==="blob"&&openFile(x.path)}>{x.type==="tree"?"📁":"📄"} {x.path}</button>):<p className="muted">Repository tree loads from the public GitHub API when available.</p>}</div>{file?<pre className="fileview"><code>{file.content}</code></pre>:<div className="empty">Select a file to view its source.</div>}</div>}{tab==="packages"&&<Panel title="Packages"><div className="empty">{packages.length?packages.join(", "):"No packages published yet."}</div></Panel>}{tab!=="code"&&tab!=="packages"&&<Panel title={tab==="issues"?"Issues":tab==="pulls"?"Pull requests":tab}><div className="empty">This {tab} workspace is ready for repository-specific data.</div></Panel>}{tab==="code"&&<RepoMeta repo={repo} tree={tree}/>}</Page>}
 
 function Page({title,subtitle,action,children}){return <section className="page"><div className="pagehead"><div><h1>{title}</h1>{subtitle&&<p>{subtitle}</p>}</div>{action}</div>{children}</section>}
 function Panel({title,action,children}){return <section className="panel"><div className="panelhead"><h2>{title}</h2>{action}</div>{children}</section>}
-function RepoMini({r,open}){return <button className="repomini" onClick={()=>open&&open(r)}><span className="repo-name">◉ {r.name}</span><span className="muted">{r.description||"No description"}</span><span className="muted">{r.language||"Code"} · ☆ {r.stars||0}</span></button>}
-function RepoCard({r,open}){return <div className="repocard"><button onClick={()=>open(r)}><h3>{r.name}</h3></button><p>{r.description||"No description provided."}</p><span className="muted">{r.visibility} · {r.language||"Code"} · ☆ {r.stars||0} · Forks {r.forks||0}</span></div>}
+function RepoMini({r,open,pinned,pin}){return <div className="repomini"><button className="repoOpen" onClick={()=>open&&open(r)}><span className="repo-name">◉ {r.name}</span><span className="muted">{r.description||"No description"}</span><span className="muted">{r.language||"Code"} · ☆ {r.stars||0}</span></button><button onClick={pin}>{pinned?"★":"☆"}</button></div>}
+function RepoCard({r,open,pinned,pin}){return <div className="repocard"><div className="repoCardTop"><button onClick={()=>open(r)}><h3>{r.name}</h3></button><button onClick={pin}>{pinned?"★ Pinned":"☆ Pin"}</button></div><p>{r.description||"No description provided."}</p><span className="muted">{r.visibility} · {r.language||"Code"} · ☆ {r.stars||0} · Forks {r.forks||0}</span><div className="repoMeta"><span>📄 README</span><span>⚖ {r.license||"No license"}</span><span>▣ Packages</span></div></div>}
 function Activity({text}){return <div className="activity"><span>●</span><span>{text}</span></div>}
 
 export default App;
+
+function RepoMeta({repo,tree}){const counts={};(tree||[]).forEach(x=>{const ext=x.path.split(".").pop().toLowerCase();const map={js:"JavaScript",jsx:"JavaScript",ts:"TypeScript",tsx:"TypeScript,html:"HTML",css:"CSS",rsx:"Xreoct",rs:"Xreoct",py:"Python",java:"Java",json:"JSON",md:"Markdown"};const n=map[ext]||"Other";counts[n]=(counts[n]||0)+1});const total=Object.values(counts).reduce((a,b)=>a+b,0)||1;return <div className="repoMetaPanel"><b>Repository overview</b><div className="langbar">{Object.entries(counts).map(([k,v])=><span key={k} style={{width:(v/total*100)+"%"}} title={k+" "+v}/>)}</div><div className="langlist">{Object.entries(counts).map(([k,v])=><span key={k}>● {k} {Math.round(v/total*100)}%</span>)}</div><div className="repoFiles"><span>📄 README.md</span><span>⚖ LICENSE</span><span>▣ Packages</span><span>⑂ Branches</span></div></div>}
+function AIChat({messages,input,setInput,onSubmit,close}){return <div className="aiOverlay"><section className="aiChat"><header><div><b>✦ GutHeb AI</b><small>Free workspace assistant</small></div><button onClick={close}>×</button></header><div className="aiMessages">{!messages.length&&<div className="aiWelcome"><strong>What are you building?</strong><p>Ask for repository structure, README drafts, issues, PR ideas, code help, licenses, packages, or project plans.</p></div>}{messages.map((m,i)=><div className={m.role==="user"?"aiUser":"aiBot"} key={i}>{m.text}</div>)}</div><form onSubmit={onSubmit}><input autoFocus value={input} onChange={e=>setInput(e.target.value)} placeholder="Ask GutHeb AI…"/><button className="primary">Send</button></form></section></div>}
