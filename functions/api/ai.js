@@ -1,5 +1,10 @@
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"content-type","Content-Type":"application/json","Cache-Control":"no-store"}});
-const safePath=p=>String(p||"").trim().replace(/^\/+|^\.\.\//g,"");
+const safePath=p=>{
+  const parts=String(p||"").trim().replaceAll("\\\\","/").split("/").filter(Boolean);
+  const clean=[];
+  for(const part of parts){if(part==="."||part==="")continue;if(part===".."||part.includes("\\0"))return "";clean.push(part)}
+  return clean.join("/");
+};
 async function currentUser(request,env){
   const users=env.USERS_DB;
   if(!users)return null;
@@ -19,13 +24,17 @@ function parseModel(raw){
 }
 export async function onRequestPost({request,env}){
   try{
+    const user=await currentUser(request,env);
+    if(!user)return json({error:"Not authenticated."},401);
     const body=await request.json();
     const message=typeof body?.message==="string"?body.message.trim():"";
     if(!message)return json({error:"Message is required."},400);
     if(!env.POLLINATIONS_API_KEY)return json({error:"POLLINATIONS_API_KEY is not configured.",provider:"pollinations"},503);
     const repo=body?.repo&&typeof body.repo==="object"?body.repo:null;
     const files=repo?.files&&typeof repo.files==="object"?repo.files:{};
-    const context=repo?JSON.stringify({owner:repo.owner,name:repo.name,description:repo.description,visibility:repo.visibility,language:repo.language,files:Object.keys(files),folders:repo.folders||[]}).slice(0,18000):"No repository is currently selected.";
+    const selectedFile=repo?.selectedFile&&typeof repo.selectedFile==="object"?repo.selectedFile:null;
+    const safeFiles=Object.fromEntries(Object.entries(files).slice(0,120).map(([p,c])=>[String(p),String(c??"").slice(0,12000)]));
+    const context=repo?JSON.stringify({owner:repo.owner,name:repo.name,description:repo.description,visibility:repo.visibility,language:repo.language,files:safeFiles,folders:Array.isArray(repo.folders)?repo.folders.slice(0,120):[],selectedFile:selectedFile?{path:String(selectedFile.path||""),content:String(selectedFile.content||"").slice(0,20000)}:null}).slice(0,40000):"No repository is currently selected.";
     const system=`You are GutHeb AI, an autonomous developer assistant inside GutHeb.
 You can propose REAL repository changes. When a repository is selected, convert the user's request into concrete operations whenever possible.
 Never claim an operation happened. Return JSON only with this exact shape:
