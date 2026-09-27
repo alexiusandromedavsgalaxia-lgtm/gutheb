@@ -14,8 +14,8 @@ function slugify(value){
 }
 
 export async function onRequestGet({request,env}){
-  const db=env.ACTIONS_DB;
-  if(!db)return json({error:"ACTIONS_DB is not bound. Bind it to the guthebactions D1 database."},503);
+  const db=env.actions;
+  if(!db)return json({error:"env.actions is not bound to the guthebactions D1 database."},503);
   const u=new URL(request.url),op=u.searchParams.get("op")||"actions";
   if(op==="actions"){
     const rows=await db.prepare("SELECT id,owner_id,author_name,slug,name,version,description,definition,created_at,updated_at FROM actions WHERE published=1 ORDER BY updated_at DESC").all();
