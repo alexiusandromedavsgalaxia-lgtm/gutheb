@@ -304,6 +304,10 @@ function Marketplace({repos,selectedRepo,saveLocalRepo}){
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState("");
   const [installTarget,setInstallTarget]=useState(selectedRepo?.name||repos.find(r=>!r.owner||r.owner===user.name)?.name||"");
+  const [selectedAction,setSelectedAction]=useState(null);
+  const [editing,setEditing]=useState(false);
+  const [editForm,setEditForm]=useState(null);
+  const [editSaving,setEditSaving]=useState(false);
 
   async function loadPublished(){
     try{const r=await fetch("/api/marketplace?op=actions",{credentials:"include"});const d=await r.json();if(!r.ok)throw new Error(d.error||"Could not load Actions");setPublished(d.actions||[]);}
@@ -334,6 +338,15 @@ function Marketplace({repos,selectedRepo,saveLocalRepo}){
     localStorage.setItem("gutheb-market-installed",JSON.stringify(nextInstalled));
     flash(item.name+" installed in .gh/yuml");
   }
+  async function saveActionEdit(){
+    if(!selectedAction||!editForm)return;
+    setEditSaving(true);setError("");
+    try{
+      const r=await fetch("/api/marketplace",{method:"PUT",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:selectedAction.id,...editForm})});
+      const d=await r.json();if(!r.ok)throw new Error(d.error||"Could not update Action");
+      setPublished(xs=>xs.map(x=>x.id===d.action.id?d.action:x));setSelectedAction(d.action);setEditing(false);setEditForm(null);flash("Action updated");
+    }catch(e){setError(e.message)}finally{setEditSaving(false)}
+  }
   const filtered=published.filter(x=>(x.name+" "+x.description+" "+x.author_name).toLowerCase().includes(q.toLowerCase()));
 
   if(publishing)return <Page title="Publish an Action" subtitle="Create a native GutHeb Action with your own definition and structure.">
@@ -351,7 +364,7 @@ function Marketplace({repos,selectedRepo,saveLocalRepo}){
     <div className="marketHero"><div><span className="marketEyebrow">GUTHEB MARKETPLACE</span><h2>Your Action catalog</h2><p>Installed Actions are copied into the selected repository under .gh/yuml/.</p></div><button className="primary" onClick={()=>{setPublishing(true);setError("")}}>＋ Publish an Action</button></div>
     <div className="marketInstallTarget"><label>Install into <select value={installTarget} onChange={e=>setInstallTarget(e.target.value)}><option value="">Select repository…</option>{repos.filter(r=>!r.owner||r.owner===user.name).map(r=><option key={r.name} value={r.name}>{r.name}</option>)}</select></label><small>Marketplace Actions are installed as <code>.gh/yuml/&lt;action&gt;.yuml</code> in the selected repository.</small></div><div className="marketTabs"><button className={tab==="actions"?"sel":""} onClick={()=>setTab("actions")}>Actions</button><button className={tab==="installed"?"sel":""} onClick={()=>setTab("installed")}>Installed</button></div>
     {tab==="actions"&&<div><div className="marketSearch"><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search published Actions…"/></div>{error&&<div className="actionError">{error}</div>}
-      {filtered.length?<div className="marketGrid">{filtered.map(item=><article className="marketActionCard" key={item.id}><div className="marketActionHead"><div><h3>{item.name}</h3><small>{item.author_name} · v{item.version}</small></div><button onClick={()=>install(item)}>{installed.includes(item.id)?"Installed":"Install"}</button></div><p>{item.description}</p><code>{item.slug}</code></article>)}</div>:
+      {filtered.length?<div className="marketGrid">{filtered.map(item=><article className="marketActionCard marketActionCardClickable" key={item.id} onClick={()=>{setSelectedAction(item);setEditing(false);setEditForm(null)}}><div className="marketActionIcon">⚙</div><div className="marketActionBody"><div className="marketActionHead"><div><h3>{item.name}</h3><small>{item.author_name} · v{item.version}</small></div><button onClick={e=>{e.stopPropagation();install(item)}}>{installed.includes(item.id)?"Installed":"Install"}</button></div><p>{item.description}</p><div className="marketActionFooter"><code>{item.slug}</code><span>View details ›</span></div></div></article>)}</div>:
       <div className="marketEmpty"><div className="marketEmptyIcon">＋</div><h3>No published Actions yet</h3><p>Publish an Action and it will appear here from the GutHeb Marketplace database.</p><button className="primary" onClick={()=>{setPublishing(true);setError("")}}>Publish your first Action</button></div>}
     </div>}
     {tab==="installed"&&<Panel title="Installed Actions">{installed.length?<div>{installed.map(id=><div className="resourceRow" key={id}><div><b>{id.split("/").pop()}</b><small>{id}</small></div><span className="statusPill success">Installed</span></div>)}</div>:<div className="empty">No Actions installed yet.</div>}</Panel>}
