@@ -407,7 +407,7 @@ function Repo({repo,tab,setTab,tree,file,openFile,go,packages,user,repoBranches,
   const visibility=(repo.visibility||"Public").toLowerCase();
   const readme=repo.files?.["README.md"]||"";
   const allPaths=Object.keys(repo.files||{});
-  const routeParts=location.hash.replace(/^#\\/?/,"").split("/");
+  const routeParts=location.hash.replace(/^#\/?/,"").split("/");
   const pathStart=routeParts.indexOf("tree")>=0?routeParts.indexOf("tree")+3:routeParts.indexOf("blob")>=0?routeParts.indexOf("blob")+3:-1;
   const currentPath=pathStart>=0?decodeURIComponent(routeParts.slice(pathStart).join("/")):"";
   const prefix=currentPath?currentPath+"/":"";
@@ -438,7 +438,7 @@ function Repo({repo,tab,setTab,tree,file,openFile,go,packages,user,repoBranches,
   };
   const copyClone=()=>{
     const url=location.origin+"/"+(repo.owner||user.name)+"/"+repo.name+".git";
-    navigator.clipboard?.writeText(url).then(()=>flash("Clone URL copied")).catch(()=>flash(url));
+    Promise.resolve(navigator.clipboard?.writeText(url)).then(()=>flash("Clone URL copied")).catch(()=>flash(url));
     setMenu("");
   };
   return <section className="repoPage">
@@ -452,7 +452,7 @@ function Repo({repo,tab,setTab,tree,file,openFile,go,packages,user,repoBranches,
         <label className="branchSelect">⑂ <select value={branch} onChange={e=>{selectBranch(e.target.value);goTree("")}}>{branches.map(b=><option key={b}>{b}</option>)}</select></label>
         <button className="countButton">{branches.length} {branches.length===1?"branch":"branches"}</button><button className="countButton">0 tags</button>
       </div><div className="repoToolbarRight">
-        <button className="goFile" onClick={()=>{const p=prompt("Go to file",currentPath||"");if(!p?.trim())return;const path=p.trim().replace(/^\\/+|\\/+$/g,"");if(repo.files?.[path]!==undefined)goBlob(path);else flash("File not found")}}>⌕ Go to file</button>
+        <button className="goFile" onClick={()=>{const p=prompt("Go to file",currentPath||"");if(!p?.trim())return;const path=p.trim().replace(/^\/+|\/+$/g,"");if(repo.files?.[path]!==undefined)goBlob(path);else flash("File not found")}}>⌕ Go to file</button>
         <div className="repoDropdown"><button onClick={()=>setMenu(menu==="add"?"":"add")}>Add file ▾</button>{menu==="add"&&<div className="repoMenu">
           <button onClick={addNewFile}>＋ Create new file</button>
           <button onClick={upload}>↑ Upload files</button>
@@ -473,7 +473,7 @@ function Repo({repo,tab,setTab,tree,file,openFile,go,packages,user,repoBranches,
           {!directFiles.length&&!directFolders.length&&<div className="repoEmptyFiles">This directory is empty.</div>}
         </div>
       </div>
-      {file?<div className="editorCard repoEditorCard"><div className="editorHead"><span>◇ {file.path}</span><span className="muted">{owner?"Editable by owner":"Read only"}</span></div><textarea readOnly={!owner} className="fileeditor" value={draft} onChange={e=>{setDraft(e.target.value);file.content=e.target.value}} spellCheck={false}/>{owner&&<div className="editorFooter"><button className="primary" onClick={()=>window.dispatchEvent(new CustomEvent("gutheb:save-file"))}>Save changes</button></div>}</div>:!currentPath&&<div className="readmeCard githubReadme"><div className="readmeHead"><span>▤ README.md</span><span className="muted">Edit</span></div><div className="readmeBody"><h1>{repo.name}</h1>{readme.replace(/^# .*?\\n?/,"").trim()?<p>{readme.replace(/^# .*?\\n?/,"").trim()}</p>:<p>{repo.description||"No README description yet."}</p>}</div></div>}
+      {file?<div className="editorCard repoEditorCard"><div className="editorHead"><span>◇ {file.path}</span><span className="muted">{owner?"Editable by owner":"Read only"}</span></div><textarea readOnly={!owner} className="fileeditor" value={draft} onChange={e=>{setDraft(e.target.value);file.content=e.target.value}} spellCheck={false}/>{owner&&<div className="editorFooter"><button className="primary" onClick={()=>window.dispatchEvent(new CustomEvent("gutheb:save-file"))}>Save changes</button></div>}</div>:!currentPath&&<div className="readmeCard githubReadme"><div className="readmeHead"><span>▤ README.md</span><span className="muted">Edit</span></div><div className="readmeBody"><h1>{repo.name}</h1>{readme.replace(/^# .*?\n?/,"").trim()?<p>{readme.replace(/^# .*?\\n?/,"").trim()}</p>:<p>{repo.description||"No README description yet."}</p>}</div></div>}
     </main><aside className="repoAside githubAside"><section><h3>About</h3><p>{repo.description||"No description, website, or topics provided."}</p>{repo.website&&<a href={repo.website} target="_blank" rel="noreferrer">↗ Website</a>}<div className="asideLink">◇ Readme</div><div className="asideLink">◉ Activity</div></section><section><h3>Releases</h3><p className="muted">No releases published</p><a>Create a new release</a></section><section><h3>Packages</h3><p className="muted">No packages published</p><a>Publish your first package</a></section><section><h3>Contributors</h3><div className="contributor"><span className="miniAvatar">{(repo.owner||"U")[0].toUpperCase()}</span><b>{repo.owner||"user"}</b><small>1 commit</small></div></section><section><h3>Languages</h3><div className="languageBar"><span style={{width:"100%"}}/></div><p><b>● {repo.language||"Code"}</b> <span className="muted">100%</span></p></section></aside></div>}
     {tab!=="code"&&<div className="repoSubpage"><div className="repoSubpageHead"><h2>{tab==="pulls"?"Pull requests":tab[0].toUpperCase()+tab.slice(1)}</h2><button className="codeGreen" onClick={()=>setTab("code")}>← Code</button></div><Panel title={tab==="actions"?"GutHeb Actions":tab==="issues"?"Issues":tab==="pulls"?"Pull requests":tab==="projects"?"Projects":tab==="wiki"?"Wiki":tab==="security"?"Security":"Insights"}><div className="empty">This repository section is ready for repository-specific data.</div></Panel></div>}
   </section>
