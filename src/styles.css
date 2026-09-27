@@ -227,3 +227,135 @@ textarea{min-height:110px;resize:vertical}
   .marketActionCard{padding:16px}
 }
 
+
+
+/* Marketplace quiet redesign */
+.marketHero{
+  position:relative;
+  padding:34px 36px;
+  margin-bottom:22px;
+  border:1px solid #242d3a;
+  border-radius:18px;
+  background:linear-gradient(135deg,#121923 0%,#0e141c 58%,#0c1118 100%);
+  box-shadow:0 18px 45px #00000020;
+}
+.marketHero:after{
+  content:"";
+  position:absolute;
+  width:180px;height:180px;right:7%;top:-90px;
+  border-radius:50%;
+  background:#6f8cff0c;
+  pointer-events:none;
+}
+.marketEyebrow{font-size:10px;letter-spacing:.16em;color:#7f8da2}
+.marketHero h2{font-size:30px;letter-spacing:-.9px;margin:7px 0 8px}
+.marketHero p{font-size:13px;line-height:1.55;color:#8f9bac}
+.marketHero .primary{position:relative;z-index:1;white-space:nowrap}
+.marketTabs{
+  gap:20px;
+  margin:0 0 20px;
+  border-bottom:1px solid #242d3a;
+}
+.marketTabs button{
+  padding:10px 2px 12px;
+  border-radius:0;
+  background:transparent!important;
+  color:#7f8b9c;
+  font-size:13px;
+}
+.marketTabs button.sel{
+  color:#eef4fb;
+  box-shadow:inset 0 -2px #8aa8ff;
+}
+.marketToolbar{
+  display:grid;
+  grid-template-columns:minmax(220px,340px) 1fr;
+  gap:18px;
+  margin-bottom:20px;
+}
+.marketToolbar>input{
+  height:40px;
+  background:#0c1118;
+  border-color:#273142;
+}
+.marketCategories{
+  display:flex;
+  align-items:center;
+  gap:4px;
+  overflow:auto;
+  scrollbar-width:none;
+}
+.marketCategories::-webkit-scrollbar{display:none}
+.marketCategories button{
+  padding:7px 10px;
+  font-size:12px;
+  border:1px solid transparent;
+  background:transparent;
+}
+.marketCategories button.sel{
+  background:#171f2b;
+  border-color:#2d394a;
+  color:#edf3fb;
+}
+.marketActionGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.marketActionCard{
+  display:grid;
+  grid-template-columns:38px minmax(0,1fr);
+  gap:13px;
+  padding:17px;
+  border:1px solid #252f3d;
+  border-radius:13px;
+  background:#10161e;
+  transition:border-color .16s ease,transform .16s ease,background .16s ease;
+}
+.marketActionCard:hover{
+  transform:translateY(-1px);
+  border-color:#3a475b;
+  background:#121923;
+}
+.marketActionIcon{
+  width:38px;height:38px;
+  border-radius:10px;
+  background:#182131;
+  border:1px solid #29364a;
+  font-size:16px;
+}
+.marketActionTitle{gap:7px}
+.marketActionTitle h3{font-size:15px;letter-spacing:-.15px}
+.marketActionBody p{
+  margin:6px 0 9px;
+  font-size:12px;
+  line-height:1.5;
+  min-height:0;
+}
+.marketActionBody small{font-size:11px}
+.verified{
+  font-size:9px;
+  padding:2px 6px;
+  background:#153022;
+  color:#65d994;
+  border:1px solid #25543a;
+}
+.marketActionFooter{
+  margin-top:13px;
+  padding-top:10px;
+  font-size:10px;
+}
+.marketActionFooter button{
+  padding:6px 11px;
+  background:#e9eef7;
+  color:#10151d;
+  border:0;
+  font-size:11px;
+}
+.marketActionFooter button:hover{background:#fff}
+@media(max-width:850px){
+  .marketToolbar{grid-template-columns:1fr}
+}
+@media(max-width:720px){
+  .marketHero{padding:24px 20px}
+  .marketHero h2{font-size:25px}
+  .marketActionGrid{grid-template-columns:1fr}
+  .marketActionCard{padding:15px}
+  .marketTabs{gap:16px}
+}
