@@ -215,7 +215,7 @@ function App(){
       <main className="main">
         {notice&&<div className="notice">{notice}</div>}
         {page==="home"&&<Home user={user} repos={filteredRepos.filter(r=>!r.owner||r.owner===user.name)} openRepo={openRepo} go={go} pinned={pinned} togglePin={togglePin}/>}
-        {page==="repos"&&<Repos repos={filteredRepos.filter(r=>!r.owner||r.owner===user.name)} openRepo={openRepo} go={go} pinned={pinned} togglePin={togglePin}/>}
+        {page==="repos"&&<Repos repos={filteredRepos.filter(r=>!r.owner||r.owner===user.name)} openRepo={openRepo} go={go} pinned={pinned} togglePin={togglePin} onImport={()=>setImportOpen(true)}/>}
         {page==="new"&&<NewRepo form={newRepo} setForm={setNewRepo} onSubmit={createRepo}/>}
         {page==="issues"&&<Issues issues={issues} user={user} title={issueTitle} setTitle={setIssueTitle} body={issueBody} setBody={setIssueBody} onSubmit={createIssue}/>}
         {page==="pulls"&&<Pulls prs={prs} setPRs={setPRs} user={user}/>}
