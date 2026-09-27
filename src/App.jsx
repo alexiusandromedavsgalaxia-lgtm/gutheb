@@ -205,7 +205,7 @@ function App(){
         {page==="notifications"&&<Notifications/>}
         {page==="profile"&&<Profile user={user} profile={profile} setProfile={setProfile} save={saveProfile} repos={repos.filter(r=>!r.owner||r.owner===user.name)} pinned={pinned} togglePin={togglePin}/>}
         {page==="settings"&&<Settings settings={settings} setSettings={setSettings} user={user}/>}
-        {routeRepo&&selectedRepo&&<Repo repo={selectedRepo} tab={repoTab} setTab={setRepoTab} tree={tree} file={file} openFile={openFile} go={go} packages={packages} user={user} repoBranches={repoBranches} createBranch={createBranch} selectBranch={selectBranch} downloadRepoZip={downloadRepoZip} openInWorkers={openInWorkers}/>}
+        {routeRepo&&selectedRepo&&<Repo repo={selectedRepo} tab={repoTab} setTab={setRepoTab} tree={tree} file={file} openFile={openFile} go={go} packages={packages} user={user} repoBranches={repoBranches} createBranch={createBranch} selectBranch={selectBranch} downloadRepoZip={downloadRepoZip} openInWorkers={openInWorkers} flash={flash}/>}
       </main>
       {aiOpen&&<AIChat messages={aiMessages} input={aiInput} setInput={setAiInput} onSubmit={askAI} close={()=>setAiOpen(false)}/>} 
     </div>
