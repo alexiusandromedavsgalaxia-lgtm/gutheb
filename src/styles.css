@@ -48,3 +48,25 @@ textarea{min-height:110px;resize:vertical}
 
 @media(max-width:1000px){.topnav{display:none}.appbody{grid-template-columns:220px 1fr}.repoPage{padding:30px 24px}}
 @media(max-width:720px){.top{height:auto;min-height:68px;flex-wrap:wrap;padding:9px 12px}.search{order:3;width:100%;flex-basis:100%}.appbody{grid-template-columns:1fr}.leftnav{display:none}.page{padding:25px 14px 50px}.grid2,.marketgrid,.board{grid-template-columns:1fr}.pagehead{flex-direction:column}.profileHero{align-items:flex-start}.topuser{margin-left:auto}.topuser button:last-child{display:none}.repoPage{padding:22px 13px 55px}.repoCrumb{font-size:21px}.repoLayout{grid-template-columns:1fr}.repoTree{border-right:0;border-bottom:1px solid var(--border);max-height:250px}.repoToolbar{flex-wrap:wrap}.repoToolbarSpacer{display:none}.repoContent{padding:9px}.readmeBody{padding:21px}}
+
+.repoTop{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;padding:34px 0 22px;border-bottom:1px solid #202734}
+.repoShell{display:grid;grid-template-columns:minmax(0,1fr) 285px;gap:26px}
+.repoMain{min-width:0}
+.repoAside{padding:18px 0 50px;border-left:1px solid #202734;padding-left:23px}
+.repoAside section{padding:0 0 20px;margin-bottom:20px;border-bottom:1px solid #202734}
+.repoAside h3{font-size:13px;margin:0 0 11px;color:#e6edf5;letter-spacing:.01em}
+.repoAside p,.repoAside .muted{font-size:12px;line-height:1.55;color:#8b98aa}
+.repoAside a{display:block;color:#9ab5ff;text-decoration:none;padding:5px 0;font-size:12px}
+.repoAside a:hover{text-decoration:underline}
+.repoActions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.repoActions button{padding:8px 11px;background:#151b23;border-color:#303b4b}
+.repoActions button span{margin-left:4px}
+.repoToolbar .branchSelect{display:flex;align-items:center;gap:6px}
+.branchSelect select{width:auto;border:0;background:transparent;padding:0;color:#dbe4ef;font-weight:650}
+.branchButton{border-color:#39475a!important}
+.contributor{display:grid;grid-template-columns:28px 1fr;column-gap:8px;align-items:center}
+.contributor b{font-size:12px}.contributor small{grid-column:2;color:#6f7c8f;font-size:11px}
+.miniAvatar{grid-row:1/3;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#28364a;color:#dce8ff;font-size:11px;font-weight:700}
+.languageRows span{display:flex;gap:7px;align-items:center;font-size:12px;color:#c7d0dc}
+.languageRows i{width:8px;height:8px;border-radius:50%;background:#7aa2ff}.languageRows small{margin-left:auto;color:#7d899a}
+@media(max-width:900px){.repoShell{grid-template-columns:1fr}.repoAside{border-left:0;border-top:1px solid #202734;padding:20px 0 0}.repoTop{flex-direction:column}.repoActions{justify-content:flex-start}}
