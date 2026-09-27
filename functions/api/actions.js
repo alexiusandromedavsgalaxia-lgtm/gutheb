@@ -66,7 +66,7 @@ async function nextRunNumber(db,ownerId){
     const row=await db.prepare("SELECT COALESCE(MAX(run_number),0)+1 AS n FROM action_runs WHERE owner_id=?").bind(ownerId).first();
     return Number(row?.n||1);
   }
-  return [...memory.values()].filter(x=>x.kind==="run").reduce((max,x)=>Math.max(max,Number(x.run_number)||0),0)+1;
+  return [...memory.values()].filter(x=>x.kind==="run"&&x.owner_id===ownerId).reduce((max,x)=>Math.max(max,Number(x.run_number)||0),0)+1;
 }
 async function makeRun(workflow,ref,yuml,plan,db,ownerId){
   const runId=id("run"),jobId=id("job");
@@ -136,7 +136,7 @@ export async function onRequestGet({request,env}){
     }
     return json({error:"Unknown operation"},400);
   }
-  const runs=[...memory.values()].filter(x=>x.kind==="run").sort((a,b)=>b.run_number-a.run_number);
+  const runs=[...memory.values()].filter(x=>x.kind==="run"&&x.owner_id===user.id).sort((a,b)=>b.run_number-a.run_number);
   if(op==="runs")return json({runs:runs.slice(0,100)});
   const run=memory.get(u.searchParams.get("run_id"));if(run?.owner_id!==user.id)return json({error:"Run not found"},404);
   if(!run)return json({error:"Run not found"},404);
