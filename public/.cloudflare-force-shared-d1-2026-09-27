@@ -5,3 +5,7 @@ REPOS_DB=repos
 ARCHIVE_DB=archivecontent
 REPOZIP_DB=zip
 WORKERS_PAGES_DB=workers-pages
+
+D1 binding: env.actions
+D1 database: guthebactions
+This is a real Cloudflare D1 binding managed by the existing GutHeb Pages project.
