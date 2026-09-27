@@ -18,7 +18,7 @@ async function schema(d){
   ]);
 }
 async function repoFor(d,user,repo){
-  const name=String(repo||"").replace(/^\\/+|\\/+$/g,"");if(!name)return null;
+  const name=String(repo||"").replace(/^\/+|\/+$/g,"");if(!name)return null;
   return d.prepare("SELECT * FROM repos WHERE owner_id=? AND name=?").bind(user.id,name).first();
 }
 async function repoSnapshot(d,r,user){
@@ -28,7 +28,7 @@ async function repoSnapshot(d,r,user){
   return {...r,owner:user.username,files:Object.fromEntries((fs.results||[]).map(x=>[x.path,x.content])),folders:(folders.results||[]).map(x=>x.path)};
 }
 function archivePayload(snapshot,name,root=""){
-  const prefix=root.replace(/^\.\//,"").replace(/^\\/+|\\/+$/g,"");const files={};
+  const prefix=root.replace(/^\.\//,"").replace(/^\/+|\/+$/g,"");const files={};
   for(const [p,c] of Object.entries(snapshot.files||{}))if(!prefix||p===prefix||p.startsWith(prefix+"/"))files[prefix&&p.startsWith(prefix+"/")?p.slice(prefix.length+1):p]=String(c??"");
   return JSON.stringify({format:"GUT-ARCHIVE",version:1,name,repository:snapshot.owner+"/"+snapshot.name,root:prefix,files,folders:(snapshot.folders||[]).filter(x=>!prefix||x===prefix||x.startsWith(prefix+"/")).map(x=>prefix&&x.startsWith(prefix+"/")?x.slice(prefix.length+1):x),created_at:new Date().toISOString()});
 }
@@ -82,7 +82,7 @@ async function execute({request,env,body}){
 
   if(p.op==="delete"&&(p.kind==="archivo"||p.kind==="raw"||p.kind==="carpeta")){
     const targetRepo=await repoFor(d,user,body.repo||"");if(!targetRepo)return json({error:"Repository required for file/folder deletion."},400);
-    const target=p.target.replace(/^\.\//,"").replace(/^\\/+|\\/+$/g,"");
+    const target=p.target.replace(/^\.\//,"").replace(/^\/+|\/+$/g,"");
     if(p.kind==="carpeta")await d.batch([d.prepare("DELETE FROM repo_files WHERE repo_id=? AND (path=? OR path LIKE ?||'/%')").bind(targetRepo.id,target,target),d.prepare("DELETE FROM repo_folders WHERE repo_id=? AND (path=? OR path LIKE ?||'/%')").bind(targetRepo.id,target,target)]);
     else await d.prepare("DELETE FROM repo_files WHERE repo_id=? AND path=?").bind(targetRepo.id,target).run();
     return json({ok:true,protocol:"GUT/1",operation:"delete",kind:p.kind,target,repo:targetRepo.name});
