@@ -35,6 +35,9 @@ function App(){
     const onHash=()=>setPage(location.hash.replace("#/","")||"home");
     addEventListener("hashchange",onHash); return()=>removeEventListener("hashchange",onHash);
   },[]);
+  useEffect(()=>{
+    fetch("/api/account",{credentials:"include"}).then(async r=>{if(!r.ok)throw new Error();const d=await r.json();setUser(d.user);setProfile({...d.profile,username:d.user.name});localStorage.setItem("gutheb-user",JSON.stringify(d.user));localStorage.setItem("gutheb-profile",JSON.stringify(d.profile||{}));return fetch("/api/account",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"me"})})}).then(r=>r.ok?r.json():null).then(d=>{if(d?.repos){setRepos(d.repos);localStorage.setItem("gutheb-repos-v2",JSON.stringify(d.repos));}}).catch(()=>{});
+  },[]);
 
   function go(p){ location.hash="/"+p; setPage(p); setNotice(""); }
   function flash(msg){setNotice(msg);setTimeout(()=>setNotice(""),2500);}
@@ -52,22 +55,20 @@ function App(){
   function togglePin(name){setPinned(x=>x.includes(name)?x.filter(v=>v!==name):[...x,name]);flash(pinned.includes(name)?"Repository unpinned":"Repository pinned");}
   async function askAI(e){e.preventDefault();const q=aiInput.trim();if(!q)return;setAiMessages(x=>[...x,{role:"user",text:q},{role:"ai",text:"Pensando…"}]);setAiInput("");try{const res=await fetch("/api/ai",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({message:q,history:aiMessages.slice(-12)})});const data=await res.json();if(!res.ok)throw new Error(data.error||"AI request failed");setAiMessages(x=>{const copy=[...x];copy[copy.length-1]={role:"ai",text:data.output||"No response."};return copy});}catch(err){setAiMessages(x=>{const copy=[...x];copy[copy.length-1]={role:"ai",text:"No he podido conectar con el backend de GutHeb AI todavía. Configura POLLINATIONS_API_KEY en Cloudflare y vuelve a intentarlo."};return copy})}}
   function aiAnswer(q){const l=q.toLowerCase();if(l.includes("crear")&&l.includes("repo"))return "Puedo preparar un nuevo repositorio desde el panel de creación. Para seguridad, las escrituras reales necesitan un backend autenticado conectado a GutHeb.";if(l.includes("readme"))return "Puedo generar la estructura y el contenido de un README, además de sugerir licencia, topics y estructura de carpetas.";if(l.includes("licencia"))return "Puedo ayudarte a elegir y generar archivos de licencia conocidos, pero la aplicación debe guardar el archivo mediante su backend.";if(l.includes("paquete")||l.includes("package"))return "Puedo analizar package.json y mostrar dependencias y versiones cuando el repositorio las exponga.";return "Soy GutHeb AI. Puedo ayudarte a diseñar repositorios, README, issues, PRs, estructura de proyectos, código y automatizaciones. Para acciones reales sobre Git, necesito una API/backend con autenticación segura.";}
-  function login(e){
+  async function login(e){
     e.preventDefault();
-    const name=authForm.name||authForm.email.split("@")[0]||"user";
-    const u={name,email:authForm.email||name+"@gutheb.local"};
-    setUser(u); localStorage.setItem("gutheb-user",JSON.stringify(u)); go("home");
+    try{const res=await fetch("/api/account",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"login",email:authForm.email,password:authForm.password})});const d=await res.json();if(!res.ok)throw new Error(d.error||"Sign in failed");setUser(d.user);setProfile({...d.profile,username:d.user.name});localStorage.setItem("gutheb-user",JSON.stringify(d.user));localStorage.setItem("gutheb-profile",JSON.stringify(d.profile||{}));const me=await fetch("/api/account",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"me"})});if(me.ok){const m=await me.json();setRepos(m.repos||[]);localStorage.setItem("gutheb-repos-v2",JSON.stringify(m.repos||[]));}go("home");}catch(err){flash(err.message);}
   }
-  function logout(){setUser(null);localStorage.removeItem("gutheb-user");go("home");}
+  async function logout(){try{await fetch("/api/account",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"logout"})});}catch{}setUser(null);localStorage.removeItem("gutheb-user");localStorage.removeItem("gutheb-profile");setRepos([]);go("home");}
   async function register(e){e.preventDefault();try{const res=await fetch("/api/account",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"register",username:authForm.name,email:authForm.email,password:authForm.password})});const d=await res.json();if(!res.ok)throw new Error(d.error||"Registration failed");setUser(d.user);setProfile({...d.profile,username:d.user.name});localStorage.setItem("gutheb-user",JSON.stringify(d.user));localStorage.setItem("gutheb-profile",JSON.stringify(d.profile||{}));setRepos(d.repos||[]);go("home");}catch(err){flash(err.message);}}
-  function createRepo(e){
+  async function createRepo(e){
     e.preventDefault();
     if(!newRepo.name.trim()) return flash("Repository name is required");
     const r={owner:user.name,name:newRepo.name.trim(),visibility:newRepo.visibility,language:"",stars:0,forks:0,updated:"just now",description:newRepo.description,license:"MIT",files:{
       "README.md":"# "+newRepo.name.trim()+"\n\n"+(newRepo.description||"")+"\n",
       "LICENSE":"MIT License\n\nCopyright (c) "+new Date().getFullYear()+" "+user.name+"\n"
     },folders:[]};
-    setRepos(x=>[r,...x]); fetch("/api/account",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"repo",repo:r})}).catch(()=>{}); setNewRepo({name:"",description:"",visibility:"Public"}); flash("Repository created"); go("repos");
+    try{const res=await fetch("/api/account",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"repo",repo:r})});const d=await res.json();if(!res.ok)throw new Error(d.error||"Repository creation failed");const saved={...r,id:d.id};setRepos(x=>[saved,...x]);setSelectedRepo(saved);setNewRepo({name:"",description:"",visibility:"Public"});flash("Repository created");go("repos");}catch(err){flash(err.message);}
   }
   function openRepo(r){
     const key=(r.owner||user.name)+"/"+r.name;
@@ -107,6 +108,7 @@ function App(){
     setRepos(xs=>xs.map(r=>r.owner===selectedRepo.owner&&r.name===selectedRepo.name?next:r));
     setSelectedRepo(next);
     setTree(Object.keys(next.files||{}).map(path=>({path,type:"blob"})));
+    fetch("/api/account",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"repo",repo:next})}).then(async r=>{if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||"Repository sync failed")}}).catch(err=>flash("Guardado local, pero no se pudo sincronizar: "+err.message));
   }
   function repoOwnerCanEdit(repo){return !!repo && repo.owner===user.name}
   function createRepoItem(type){
@@ -136,19 +138,12 @@ function App(){
     setIssues(x=>[{id:Date.now(),title:issueTitle,state:"open",labels:["created"],author:user?.name||"you"},...x]);
     setIssueTitle("");setIssueBody("");flash("Issue created");
   }
-  function saveProfile(e){
+  async function saveProfile(e){
     e.preventDefault();
     const nextName=(profile.username||user.name).trim();
     if(!nextName)return flash("Username is required");
-    const oldName=user.name;
-    const nextUser={...user,name:nextName};
     const nextProfile={...profile,username:nextName,avatar:profile.avatar||""};
-    setUser(nextUser);
-    setProfile(nextProfile);
-    setRepos(xs=>xs.map(r=>r.owner===oldName?{...r,owner:nextName}:r));
-    localStorage.setItem("gutheb-user",JSON.stringify(nextUser));
-    localStorage.setItem("gutheb-profile",JSON.stringify(nextProfile));
-    flash("Profile saved");
+    try{const res=await fetch("/api/account",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"profile",profile:nextProfile})});const d=await res.json();if(!res.ok)throw new Error(d.error||"Profile save failed");const nextUser={...user,name:nextName};setUser(nextUser);setProfile(nextProfile);localStorage.setItem("gutheb-user",JSON.stringify(nextUser));localStorage.setItem("gutheb-profile",JSON.stringify(nextProfile));flash("Profile saved and synchronized");}catch(err){flash(err.message);}
   }
   const filteredRepos=useMemo(()=>repos.filter(r=>(r.name+" "+r.description).toLowerCase().includes(query.toLowerCase())),[repos,query]);
 
@@ -252,9 +247,7 @@ function Codespaces(){return <Page title="Codespaces" subtitle="Cloud developmen
 function Marketplace(){return <Page title="Marketplace" subtitle="Apps, actions, and developer tools."><div className="marketgrid">{["CI/CD","Code quality","Project management","Security","Deployment","AI tools"].map(x=><div className="market" key={x}><b>{x}</b><p>Explore integrations for {x.toLowerCase()}.</p><button>Explore</button></div>)}</div></Page>}
 function Explore(){return <Page title="Explore" subtitle="Discover projects, topics, and developers."><div className="grid2"><Panel title="Trending"><RepoMini r={{name:"awesome-project",description:"A trending open-source project",language:"JavaScript"}}/></Panel><Panel title="Topics"><div className="topics">{["javascript","react","cloud","ai","games","web"].map(x=><span key={x}>#{x}</span>)}</div></Panel></div></Page>}
 function Notifications(){return <Page title="Notifications"><Panel title="Inbox"><div className="empty">You're all caught up. 🎉</div></Panel></Page>}
-function avatarFile(e){const f=e.target.files?.[0];if(!f)return;if(f.size>4*1024*1024)return flash("Profile photo must be under 4 MB");const reader=new FileReader();reader.onload=()=>{const avatar=String(reader.result||"");setProfile(p=>{const next={...p,avatar};localStorage.setItem("gutheb-profile",JSON.stringify(next));return next})};reader.readAsDataURL(f);}
-
-function Profile({user,profile,setProfile,save,repos,pinned,togglePin}){return <Page title={user.name} subtitle={user.email}><div className="profileHero"><div className="avatar">{profile.avatar?<img src={profile.avatar} alt="Profile"/>:<span>{user.name.slice(0,1).toUpperCase()}</span>}</div><div><h2>{user.name}</h2><p>{profile.bio||"Add a short bio to your profile."}</p></div></div><form className="panel form" onSubmit={save}><label>Username<input required value={profile.username??user.name} onChange={e=>setProfile({...profile,username:e.target.value})}/></label><label>Profile photo<input type="file" accept="image/*" onChange={avatarFile}/></label><label>Bio<textarea value={profile.bio} onChange={e=>setProfile({...profile,bio:e.target.value})}/></label><label>Location<input value={profile.location} onChange={e=>setProfile({...profile,location:e.target.value})}/></label><label>Website<input value={profile.website} onChange={e=>setProfile({...profile,website:e.target.value})}/></label><button className="primary">Save profile</button></form><Panel title="Repositories">{repos.map(r=><RepoMini r={r} key={r.name} pinned={pinned.includes(r.name)} pin={()=>togglePin(r.name)}/>)}</Panel></Page>}
+function Profile({user,profile,setProfile,save,repos,pinned,togglePin}){const avatarFile=e=>{const f=e.target.files?.[0];if(!f)return;if(f.size>4*1024*1024)return;const reader=new FileReader();reader.onload=()=>setProfile(p=>({...p,avatar:String(reader.result||"")}));reader.readAsDataURL(f)};return <Page title={user.name} subtitle={user.email}><div className="profileHero"><div className="avatar">{profile.avatar?<img src={profile.avatar} alt="Profile"/>:<span>{user.name.slice(0,1).toUpperCase()}</span>}</div><div><h2>{user.name}</h2><p>{profile.bio||"Add a short bio to your profile."}</p></div></div><form className="panel form" onSubmit={save}><label>Username<input required value={profile.username??user.name} onChange={e=>setProfile({...profile,username:e.target.value})}/></label><label>Profile photo<input type="file" accept="image/*" onChange={avatarFile}/></label><label>Bio<textarea value={profile.bio} onChange={e=>setProfile({...profile,bio:e.target.value})}/></label><label>Location<input value={profile.location} onChange={e=>setProfile({...profile,location:e.target.value})}/></label><label>Website<input value={profile.website} onChange={e=>setProfile({...profile,website:e.target.value})}/></label><button className="primary">Save profile</button></form><Panel title="Repositories">{repos.map(r=><RepoMini r={r} key={r.name} pinned={pinned.includes(r.name)} pin={()=>togglePin(r.name)}/>)}</Panel></Page>}
 function Settings({settings,setSettings,user}){return <Page title="Settings" subtitle="Manage your GutHeb account and preferences."><Panel title="Account"><div className="setting"><span><b>Username</b><small>{user.name}</small></span><button>Change</button></div><div className="setting"><span><b>Email</b><small>{user.email}</small></span><button>Manage</button></div></Panel><Panel title="Preferences"><div className="setting"><span><b>Theme</b><small>Dark developer theme</small></span><select value={settings.theme} onChange={e=>setSettings({...settings,theme:e.target.value})}><option>dark</option><option>light</option></select></div><div className="setting"><span><b>Email notifications</b><small>Receive product updates</small></span><input type="checkbox" checked={settings.email} onChange={e=>setSettings({...settings,email:e.target.checked})}/></div></Panel><Panel title="Danger zone"><button className="danger">Delete account</button></Panel></Page>}
 
 function Repo({repo,tab,setTab,tree,file,openFile,go,packages,user,repoBranches,createBranch,selectBranch,downloadRepoZip,openInWorkers}){
