@@ -1,1 +1,7 @@
-shared D1 bindings: USERS_DB=users, REPOS_DB=repos, ARCHIVE_DB=archivecontent, REPOZIP_DB=zip
+CLOUDFLARE FORCE REBUILD • 1790536849526
+Base44-style Workers UI + separate D1 bindings
+USERS_DB=users
+REPOS_DB=repos
+ARCHIVE_DB=archivecontent
+REPOZIP_DB=zip
+WORKERS_PAGES_DB=workers-pages
