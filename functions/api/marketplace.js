@@ -103,3 +103,29 @@ export async function onRequestPost({request,env}){
 export async function onRequestOptions(){
   return new Response(null,{status:204,headers:{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"content-type","Access-Control-Allow-Methods":"GET,POST,OPTIONS"}});
 }
+
+
+export async function onRequestPut({request,env}){
+  const db=env.actions;
+  if(!db)return json({error:"env.actions is not bound to the guthebactions D1 database."},503);
+  await ensureSchema(db);
+  const user=await currentUser(request,env);
+  if(!user)return json({error:"Not authenticated."},401);
+  let b={};try{b=await request.json()}catch{}
+  const id=String(b.id||"");
+  if(!id)return json({error:"Action id required."},400);
+  const existing=await db.prepare("SELECT id,owner_id FROM actions WHERE id=?").bind(id).first();
+  if(!existing)return json({error:"Action not found."},404);
+  if(existing.owner_id!==user.id)return json({error:"Only the Action creator can edit it."},403);
+  const name=String(b.name||"").trim(),version=String(b.version||"").trim(),description=String(b.description||"").trim(),definition=String(b.definition||"");
+  if(!name||!version||!description||!definition.trim())return json({error:"Name, version, description and Action definition are required."},400);
+  const slug=slugify(name);
+  if(!slug)return json({error:"Action name must contain letters or numbers."},400);
+  const conflict=await db.prepare("SELECT id FROM actions WHERE slug=? AND id<>?").bind(slug,id).first();
+  if(conflict)return json({error:"Another Action with this name already exists."},409);
+  const now=new Date().toISOString();
+  await db.prepare("UPDATE actions SET slug=?,name=?,version=?,description=?,definition=?,updated_at=? WHERE id=? AND owner_id=?")
+    .bind(slug,name,version,description,definition,now,id,user.id).run();
+  const row=await db.prepare("SELECT id,owner_id,author_name,slug,name,version,description,definition,created_at,updated_at FROM actions WHERE id=?").bind(id).first();
+  return json({ok:true,action:row});
+}
