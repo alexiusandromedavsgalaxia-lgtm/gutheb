@@ -29,6 +29,7 @@ function App(){
   const [aiOpen,setAiOpen]=useState(false); const [aiInput,setAiInput]=useState(""); const [aiMessages,setAiMessages]=useState([]);
   const [packages,setPackages]=useState(()=>JSON.parse(localStorage.getItem("gutheb-packages")||"[]"));
   const [newItem,setNewItem]=useState({type:"file",path:"",content:""});
+  const [repoBranches,setRepoBranches]=useState(()=>JSON.parse(localStorage.getItem("gutheb-branches-v1")||"{}"));
 
   useEffect(()=>{
     const onHash=()=>setPage(location.hash.replace("#/","")||"home");
@@ -40,6 +41,7 @@ function App(){
   useEffect(()=>localStorage.setItem("gutheb-repos-v2",JSON.stringify(repos)),[repos]);
   useEffect(()=>localStorage.setItem("gutheb-pinned",JSON.stringify(pinned)),[pinned]);
   useEffect(()=>localStorage.setItem("gutheb-packages",JSON.stringify(packages)),[packages]);
+  useEffect(()=>localStorage.setItem("gutheb-branches-v1",JSON.stringify(repoBranches)),[repoBranches]);
   useEffect(()=>{
     const nf=e=>{if(!selectedRepo)return;const path=e.detail.trim();if(!path)return;const next={...selectedRepo,files:{...(selectedRepo.files||{})}};if(next.files[path]!==undefined)return flash("File already exists");next.files[path]="";saveLocalRepo(next);setFile({path,content:""});};
     const nd=e=>{if(!selectedRepo)return;const path=e.detail.trim();if(!path)return;const next={...selectedRepo,folders:[...(selectedRepo.folders||[])]};if(next.folders.includes(path))return flash("Folder already exists");next.folders.push(path);saveLocalRepo(next);};
@@ -68,7 +70,10 @@ function App(){
     setRepos(x=>[r,...x]); setNewRepo({name:"",description:"",visibility:"Public"}); flash("Repository created"); go("repos");
   }
   function openRepo(r){
-    setSelectedRepo(r); setRepoTab("code"); setFile(null); setTree(Object.keys(r.files||{}).map(path=>({path,type:"blob"})));
+    const key=(r.owner||user.name)+"/"+r.name;
+    const branches=repoBranches[key]||["main"];
+    if(!repoBranches[key]) setRepoBranches(x=>({...x,[key]:branches}));
+    setSelectedRepo({...r,currentBranch:r.currentBranch||branches[0]}); setRepoTab("code"); setFile(null); setTree(Object.keys(r.files||{}).map(path=>({path,type:"blob"})));
     go("repo/"+r.name);
   }
   function openFile(path){
@@ -77,11 +82,33 @@ function App(){
     if(content===undefined)return flash("File not found");
     setFile({path,content});
   }
+  function downloadRepoZip(repo){
+    const files=Object.entries(repo.files||{});
+    const crc32=(data)=>{let c=0xffffffff;for(let i=0;i<data.length;i++){c^=data[i];for(let k=0;k<8;k++)c=(c>>>1)^((c&1)?0xedb88320:0)}return (c^0xffffffff)>>>0};
+    const enc=new TextEncoder(), chunks=[], central=[]; let offset=0;
+    const u16=n=>new Uint8Array([n&255,(n>>>8)&255]),u32=n=>new Uint8Array([n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255]);
+    const join=a=>{const out=new Uint8Array(a.reduce((n,x)=>n+x.length,0));let p=0;for(const x of a){out.set(x,p);p+=x.length}return out};
+    for(const [path,text] of files){const name=enc.encode(path),data=enc.encode(String(text??"")),crc=crc32(data);const local=join([new Uint8Array([80,75,3,4,20,0,0,0,0,0,0,0,0,0]),u32(crc),u32(data.length),u32(data.length),u16(name.length),u16(0),name,data]);chunks.push(local);central.push(join([new Uint8Array([80,75,1,2,20,0,20,0,0,0,0,0,0,0]),u32(crc),u32(data.length),u32(data.length),u16(name.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(offset),name]));offset+=local.length}
+    const cd=join(central),body=join(chunks),end=join([new Uint8Array([80,75,5,6,0,0,0,0]),u16(files.length),u16(files.length),u32(cd.length),u32(body.length),u16(0)]);const blob=new Blob([body,cd,end],{type:"application/zip"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=repo.name+".zip";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);flash("ZIP downloaded");
+  }
+  function openInWorkers(repo){localStorage.setItem("gutheb-workers-open",JSON.stringify({repo:repo.owner+"/"+repo.name,files:repo.files||{},folders:repo.folders||[]}));window.location.href="/workers/#/workspace/"+encodeURIComponent(repo.name); }
+  function createBranch(){
+    if(!selectedRepo)return;
+    if(selectedRepo.owner!==user.name)return flash("Only the repository owner can create branches");
+    const name=prompt("New branch name","feature/new");if(!name?.trim())return;
+    const key=(selectedRepo.owner||user.name)+"/"+selectedRepo.name;const clean=name.trim();
+    setRepoBranches(x=>({...x,[key]:[...(x[key]||["main"]),clean]}));flash("Branch created");
+  }
+  function selectBranch(name){
+    if(!selectedRepo)return;
+    setSelectedRepo(x=>({...x,currentBranch:name}));setFile(null);
+  }
   function saveLocalRepo(next){
     setRepos(xs=>xs.map(r=>r.owner===selectedRepo.owner&&r.name===selectedRepo.name?next:r));
     setSelectedRepo(next);
     setTree(Object.keys(next.files||{}).map(path=>({path,type:"blob"})));
   }
+  function repoOwnerCanEdit(repo){return !!repo && repo.owner===user.name}
   function createRepoItem(type){
     const path=newItem.path.trim().replace(/^\/+|\/+$/g,"");
     if(!path)return flash(type==="file"?"Enter a file path":"Enter a folder path");
@@ -99,6 +126,7 @@ function App(){
   }
   function saveFileEdit(){
     if(!selectedRepo||!file)return;
+    if(!repoOwnerCanEdit(selectedRepo)) return flash("Only the repository owner can edit this repository");
     const next={...selectedRepo,files:{...(selectedRepo.files||{}),[file.path]:file.content}};
     saveLocalRepo(next); flash("File saved");
   }
@@ -177,7 +205,7 @@ function App(){
         {page==="notifications"&&<Notifications/>}
         {page==="profile"&&<Profile user={user} profile={profile} setProfile={setProfile} save={saveProfile} repos={repos.filter(r=>!r.owner||r.owner===user.name)} pinned={pinned} togglePin={togglePin}/>}
         {page==="settings"&&<Settings settings={settings} setSettings={setSettings} user={user}/>}
-        {routeRepo&&selectedRepo&&<Repo repo={selectedRepo} tab={repoTab} setTab={setRepoTab} tree={tree} file={file} openFile={openFile} go={go} packages={packages}/>}
+        {routeRepo&&selectedRepo&&<Repo repo={selectedRepo} tab={repoTab} setTab={setRepoTab} tree={tree} file={file} openFile={openFile} go={go} packages={packages} user={user} repoBranches={repoBranches} createBranch={createBranch} selectBranch={selectBranch} downloadRepoZip={downloadRepoZip} openInWorkers={openInWorkers}/>}
       </main>
       {aiOpen&&<AIChat messages={aiMessages} input={aiInput} setInput={setAiInput} onSubmit={askAI} close={()=>setAiOpen(false)}/>} 
     </div>
@@ -229,46 +257,57 @@ function avatarFile(e){const f=e.target.files?.[0];if(!f)return;if(f.size>4*1024
 function Profile({user,profile,setProfile,save,repos,pinned,togglePin}){return <Page title={user.name} subtitle={user.email}><div className="profileHero"><div className="avatar">{profile.avatar?<img src={profile.avatar} alt="Profile"/>:<span>{user.name.slice(0,1).toUpperCase()}</span>}</div><div><h2>{user.name}</h2><p>{profile.bio||"Add a short bio to your profile."}</p></div></div><form className="panel form" onSubmit={save}><label>Username<input required value={profile.username??user.name} onChange={e=>setProfile({...profile,username:e.target.value})}/></label><label>Profile photo<input type="file" accept="image/*" onChange={avatarFile}/></label><label>Bio<textarea value={profile.bio} onChange={e=>setProfile({...profile,bio:e.target.value})}/></label><label>Location<input value={profile.location} onChange={e=>setProfile({...profile,location:e.target.value})}/></label><label>Website<input value={profile.website} onChange={e=>setProfile({...profile,website:e.target.value})}/></label><button className="primary">Save profile</button></form><Panel title="Repositories">{repos.map(r=><RepoMini r={r} key={r.name} pinned={pinned.includes(r.name)} pin={()=>togglePin(r.name)}/>)}</Panel></Page>}
 function Settings({settings,setSettings,user}){return <Page title="Settings" subtitle="Manage your GutHeb account and preferences."><Panel title="Account"><div className="setting"><span><b>Username</b><small>{user.name}</small></span><button>Change</button></div><div className="setting"><span><b>Email</b><small>{user.email}</small></span><button>Manage</button></div></Panel><Panel title="Preferences"><div className="setting"><span><b>Theme</b><small>Dark developer theme</small></span><select value={settings.theme} onChange={e=>setSettings({...settings,theme:e.target.value})}><option>dark</option><option>light</option></select></div><div className="setting"><span><b>Email notifications</b><small>Receive product updates</small></span><input type="checkbox" checked={settings.email} onChange={e=>setSettings({...settings,email:e.target.checked})}/></div></Panel><Panel title="Danger zone"><button className="danger">Delete account</button></Panel></Page>}
 
-function Repo({repo,tab,setTab,tree,file,openFile,go,packages}){
+function Repo({repo,tab,setTab,tree,file,openFile,go,packages,user,repoBranches,createBranch,selectBranch,downloadRepoZip,openInWorkers}){
   const [draft,setDraft]=useState(file?.content||"");
   useEffect(()=>setDraft(file?.content||""),[file?.path]);
-  const folders=repo.folders||[];
-  const files=tree||[];
+  const folders=repo.folders||[], files=tree||[];
+  const key=(repo.owner||user.name)+"/"+repo.name, branches=repoBranches[key]||["main"];
+  const owner=repo.owner===user.name;
   const visibility=(repo.visibility||"Public").toLowerCase();
   return <section className="repoPage">
-    <div className="repoIdentity">
-      <div className="repoCrumb"><button onClick={()=>go("profile")}>{repo.owner||"user"}</button><span>/</span><strong>{repo.name}</strong><span className={"visibility "+visibility}>{visibility}</span></div>
-      <p>{repo.description||"No description provided yet."}</p>
-      <div className="repoActions"><button onClick={()=>go("repos")}>← Repositories</button><button>☆ Star</button><button>Fork</button><button>•••</button></div>
+    <div className="repoTop">
+      <div className="repoIdentity">
+        <div className="repoCrumb"><button onClick={()=>go("profile")}>{repo.owner||"user"}</button><span>/</span><strong>{repo.name}</strong><span className={"visibility "+visibility}>{visibility}</span></div>
+        <p>{repo.description||"No description provided yet."}</p>
+      </div>
+      <div className="repoActions"><button>☆ <span>Star</span></button><button>⑂ <span>Fork</span></button><button onClick={()=>downloadRepoZip(repo)}>⇩ <span>Download ZIP</span></button><button onClick={()=>openInWorkers(repo)}>◈ <span>Open in Workers</span></button></div>
     </div>
-    <nav className="repoTabs">{["code","issues","pulls","actions","projects","security","packages","insights"].map(x=><button className={tab===x?"sel":""} onClick={()=>setTab(x)} key={x}>{x[0].toUpperCase()+x.slice(1)}</button>)}</nav>
-    {tab==="code"&&<div className="repoWorkspace">
-      <div className="repoToolbar">
-        <div className="branchSelect">⑂ main⌄</div>
-        <div className="repoToolbarSpacer"/>
-        <button onClick={()=>{const p=prompt("File path","src/index.js");if(p)window.dispatchEvent(new CustomEvent("gutheb:new-file",{detail:p}))}}>＋ New file</button>
-        <button onClick={()=>{const p=prompt("Folder path","src");if(p)window.dispatchEvent(new CustomEvent("gutheb:new-folder",{detail:p}))}}>＋ New folder</button>
-        {file&&<button className="primary" onClick={()=>window.dispatchEvent(new CustomEvent("gutheb:save-file"))}>Save changes</button>}
-      </div>
-      <div className="repoLayout">
-        <aside className="repoTree">
-          <div className="treeHead"><b>Files</b><span>{files.length}</span></div>
-          {folders.map(x=><div className="treeFolder" key={"f"+x}>⌄ <span>📁</span>{x}</div>)}
-          {files.map(x=><button className={"treeFile "+(file?.path===x.path?"active":"")} key={x.path} onClick={()=>openFile(x.path)}><span>▣</span>{x.path}</button>)}
-          {!files.length&&!folders.length&&<div className="treeEmpty">No files yet.</div>}
-        </aside>
-        <section className="repoContent">
-          {file?<div className="editorCard"><div className="editorHead"><span>▣ {file.path}</span><span className="muted">Editing locally</span></div><textarea className="fileeditor" value={draft} onChange={e=>{setDraft(e.target.value);file.content=e.target.value}} spellCheck={false}/></div>:
-            <div className="repoOverview">
-              <div className="readmeCard"><div className="readmeHead"><span>README.md</span><span className="muted">main</span></div><div className="readmeBody"><h2>{repo.name}</h2><p>{repo.description||"This repository is ready for your first commit."}</p><div className="readmeStats"><span>☆ {repo.stars||0} stars</span><span>⑂ {repo.forks||0} forks</span><span>● {repo.language||"Code"}</span></div></div></div>
-              <div className="commitStrip"><span>Latest commit</span><b>Initial GutHeb repository</b><span className="muted">just now</span></div>
-            </div>}
-        </section>
-      </div>
-      <RepoMeta repo={repo} tree={tree}/>
-    </div>}
-    {tab==="packages"&&<Panel title="Packages"><div className="empty">{packages.length?packages.join(", "):"No packages published yet."}</div></Panel>}
-    {tab!=="code"&&tab!=="packages"&&<Panel title={tab==="issues"?"Issues":tab==="pulls"?"Pull requests":tab}><div className="empty">This {tab} workspace is ready for repository-specific data.</div></Panel>}
+    <div className="repoShell">
+      <main className="repoMain">
+        <nav className="repoTabs">{["code","issues","pulls","actions","projects","security","packages","insights"].map(x=><button className={tab===x?"sel":""} onClick={()=>setTab(x)} key={x}>{x[0].toUpperCase()+x.slice(1)}</button>)}</nav>
+        {tab==="code"&&<div className="repoWorkspace">
+          <div className="repoToolbar">
+            <div className="branchSelect">⑂ <select value={repo.currentBranch||"main"} onChange={e=>selectBranch(e.target.value)}>{branches.map(b=><option key={b}>{b}</option>)}</select></div>
+            <button className="branchButton" onClick={createBranch}>＋ Branch</button><div className="repoToolbarSpacer"/>
+            <button onClick={()=>{const p=prompt("File path","src/index.js");if(p&&owner)window.dispatchEvent(new CustomEvent("gutheb:new-file",{detail:p}));else if(p)flash("Only the repository owner can edit this repository")}}>＋ New file</button>
+            <button onClick={()=>{const p=prompt("Folder path","src");if(p&&owner)window.dispatchEvent(new CustomEvent("gutheb:new-folder",{detail:p}));else if(p)flash("Only the repository owner can edit this repository")}}>＋ Folder</button>
+            {file&&owner&&<button className="primary" onClick={()=>window.dispatchEvent(new CustomEvent("gutheb:save-file"))}>Save changes</button>}
+          </div>
+          <div className="repoLayout">
+            <aside className="repoTree">
+              <div className="treeHead"><b>Files</b><span>{files.length}</span></div>
+              {folders.map(x=><div className="treeFolder" key={"f"+x}>⌄ <span>▱</span>{x}</div>)}
+              {files.map(x=><button className={"treeFile "+(file?.path===x.path?"active":"")} key={x.path} onClick={()=>openFile(x.path)}><span>◇</span>{x.path}</button>)}
+              {!files.length&&!folders.length&&<div className="treeEmpty">No files yet.</div>}
+            </aside>
+            <section className="repoContent">
+              {file?<div className="editorCard"><div className="editorHead"><span>◇ {file.path}</span><span className="muted">{owner?"Editable by owner":"Read only"}</span></div><textarea readOnly={!owner} className="fileeditor" value={draft} onChange={e=>{setDraft(e.target.value);file.content=e.target.value}} spellCheck={false}/></div>:
+                <div className="repoOverview"><div className="readmeCard"><div className="readmeHead"><span>README.md</span><span className="muted">{repo.currentBranch||"main"}</span></div><div className="readmeBody"><h2>{repo.name}</h2><p>{repo.description||"This repository is ready for your first commit."}</p><div className="readmeStats"><span>☆ {repo.stars||0} stars</span><span>⑂ {repo.forks||0} forks</span><span>● {repo.language||"Code"}</span></div></div></div><div className="commitStrip"><span>Latest commit</span><b>Initial GutHeb repository</b><span className="muted">just now</span></div></div>}
+            </section>
+          </div>
+        </div>}
+        {tab==="packages"&&<Panel title="Packages"><div className="empty">{packages.length?packages.join(", "):"No packages published yet."}</div></Panel>}
+        {tab!=="code"&&tab!=="packages"&&<Panel title={tab==="issues"?"Issues":tab==="pulls"?"Pull requests":tab}><div className="empty">This {tab} workspace is ready for repository-specific data.</div></Panel>}
+      </main>
+      <aside className="repoAside">
+        <section><h3>About</h3><p>{repo.description||"No description."}</p>{repo.website&&<a href={repo.website} target="_blank" rel="noreferrer">↗ Website</a>}</section>
+        <section><h3>Repository</h3><a>♡ {repo.stars||0} stars</a><a>⑂ {repo.forks||0} forks</a><a>◉ {files.length} files</a><a>⚖ {repo.license||"MIT License"}</a></section>
+        <section><h3>Contributors</h3><div className="contributor"><span className="miniAvatar">{(repo.owner||"U")[0].toUpperCase()}</span><b>{repo.owner||"user"}</b><small>Owner</small></div></section>
+        <section><h3>Packages</h3>{packages.length?packages.map(p=><a key={p}>▣ {p}</a>):<span className="muted">No packages</span>}</section>
+        <section><h3>Languages</h3><div className="languageRows"><span><i/> {repo.language||"Code"} <small>100%</small></span></div></section>
+        <section><h3>Local permissions</h3><span className="muted">{owner?"You are the owner and can edit." : "Read-only. Only the creator can edit."}</span></section>
+      </aside>
+    </div>
   </section>
 }
 function Page({title,subtitle,action,children}){return <section className="page"><div className="pagehead"><div><h1>{title}</h1>{subtitle&&<p>{subtitle}</p>}</div>{action}</div>{children}</section>}
