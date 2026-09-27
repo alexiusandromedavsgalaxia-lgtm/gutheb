@@ -1,0 +1,12 @@
+{
+  "name": "GutHeb",
+  "short_name": "GutHeb",
+  "description": "Independent developer platform.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070a10",
+  "theme_color": "#0b111b",
+  "icons": [
+    {"src":"/gutheb-icons/app.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}
