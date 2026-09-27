@@ -2,14 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 
 const seedRepos = [];
 
-const seedIssues = [
-  { id:1, title:"Welcome to GutHeb", state:"open", labels:["welcome"], author:"system" },
-  { id:2, title:"Add repository discussions", state:"open", labels:["enhancement"], author:"system" }
-];
+const seedIssues = [];
 
-const seedPRs = [
-  { id:1, title:"Initial platform build", state:"open", author:"system", branch:"main" }
-];
+const seedPRs = [];
 
 function App(){
   const [user,setUser]=useState(()=>JSON.parse(localStorage.getItem("gutheb-user")||"null"));
@@ -28,7 +23,7 @@ function App(){
   const [newRepo,setNewRepo]=useState({name:"",description:"",visibility:"Public"});
   const [issueTitle,setIssueTitle]=useState("");
   const [issueBody,setIssueBody]=useState("");
-  const [profile,setProfile]=useState(()=>JSON.parse(localStorage.getItem("gutheb-profile")||"null")||{bio:"",location:"",website:"",avatar:""});
+  const [profile,setProfile]=useState(()=>JSON.parse(localStorage.getItem("gutheb-profile")||"null")||{username:"",bio:"",location:"",website:"",avatar:""});
   const [settings,setSettings]=useState({theme:"dark",email:true,notifications:true});
   const [pinned,setPinned]=useState(()=>JSON.parse(localStorage.getItem("gutheb-pinned")||"[]"));
   const [aiOpen,setAiOpen]=useState(false); const [aiInput,setAiInput]=useState(""); const [aiMessages,setAiMessages]=useState([]);
@@ -119,7 +114,7 @@ function App(){
     if(!nextName)return flash("Username is required");
     const oldName=user.name;
     const nextUser={...user,name:nextName};
-    const nextProfile={...profile,username:nextName};
+    const nextProfile={...profile,username:nextName,avatar:profile.avatar||""};
     setUser(nextUser);
     setProfile(nextProfile);
     setRepos(xs=>xs.map(r=>r.owner===oldName?{...r,owner:nextName}:r));
