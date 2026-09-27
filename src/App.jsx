@@ -8,7 +8,7 @@ const seedPRs = [];
 
 function App(){
   const [user,setUser]=useState(()=>JSON.parse(localStorage.getItem("gutheb-user")||"null"));
-  const [page,setPage]=useState(()=>location.hash.replace("#/","")||"home");
+  const [page,setPage]=useState(()=>{const p=location.hash.replace("#/","");if(p)return p;const m=location.pathname.match(/^\/([^/]+)\/([^/]+)\.git\/?$/);return m?"repo/"+encodeURIComponent(m[2]):"home";});
   const [auth,setAuth]=useState("login");
   const [authForm,setAuthForm]=useState({name:"",email:"",password:""});
   const [notice,setNotice]=useState("");
@@ -39,7 +39,7 @@ function App(){
     addEventListener("hashchange",onHash); return()=>removeEventListener("hashchange",onHash);
   },[]);
   useEffect(()=>{
-    fetch("/api/account",{credentials:"include"}).then(async r=>{if(!r.ok)throw new Error();const d=await r.json();setUser(d.user);setProfile({...d.profile,username:d.user.name});localStorage.setItem("gutheb-user",JSON.stringify(d.user));localStorage.setItem("gutheb-profile",JSON.stringify(d.profile||{}));return fetch("/api/account",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"me"})})}).then(r=>r.ok?r.json():null).then(d=>{if(d?.repos){setRepos(d.repos);localStorage.setItem("gutheb-repos-v2",JSON.stringify(d.repos));}}).catch(()=>{});
+    fetch("/api/account",{credentials:"include"}).then(async r=>{if(!r.ok)throw new Error();const d=await r.json();setUser(d.user);setProfile({...d.profile,username:d.user.name});localStorage.setItem("gutheb-user",JSON.stringify(d.user));localStorage.setItem("gutheb-profile",JSON.stringify(d.profile||{}));return fetch("/api/account",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"me"})})}).then(r=>r.ok?r.json():null).then(d=>{if(d?.repos){setRepos(d.repos);localStorage.setItem("gutheb-repos-v2",JSON.stringify(d.repos));const m=location.pathname.match(/^\/([^/]+)\/([^/]+)\.git\/?$/);if(m){const r=d.repos.find(x=>x.name===decodeURIComponent(m[2])&&(x.owner||d.user?.name)===decodeURIComponent(m[1]));if(r){setSelectedRepo({...r,currentBranch:r.currentBranch||"main"});setRepoTab("code");setTree(Object.keys(r.files||{}).map(path=>({path,type:"blob"})));}}}}).catch(()=>{});
   },[]);
 
   function go(p){ location.hash="/"+p; setPage(p); setNotice(""); }
