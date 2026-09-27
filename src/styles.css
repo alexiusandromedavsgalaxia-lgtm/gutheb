@@ -70,3 +70,37 @@ textarea{min-height:110px;resize:vertical}
 .languageRows span{display:flex;gap:7px;align-items:center;font-size:12px;color:#c7d0dc}
 .languageRows i{width:8px;height:8px;border-radius:50%;background:#7aa2ff}.languageRows small{margin-left:auto;color:#7d899a}
 @media(max-width:900px){.repoShell{grid-template-columns:1fr}.repoAside{border-left:0;border-top:1px solid #202734;padding:20px 0 0}.repoTop{flex-direction:column}.repoActions{justify-content:flex-start}}
+
+/* GutHeb Actions */
+.actionsNotice{position:fixed;right:20px;top:82px;z-index:50;padding:10px 14px;border:1px solid #4669a8;border-radius:9px;background:#17243a;color:#e9f0ff;box-shadow:0 12px 30px #0008}
+.actionsTop{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:18px;border-bottom:1px solid var(--border);padding-bottom:12px}
+.actionsTabs{display:flex;gap:2px;overflow:auto;min-width:0}
+.actionsTabs button{border:0;border-radius:7px;background:transparent;color:#8d99aa;padding:9px 11px;white-space:nowrap}
+.actionsTabs button:hover{background:#151b23;color:#e7edf5}
+.actionsTabs button.sel{background:#182235;color:#fff;box-shadow:inset 0 -2px #7aa2ff}
+.actionsTopBtns{display:flex;gap:7px;flex:none}
+.actionsTopBtns button{padding:8px 12px}
+.actionsGrid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.75fr);gap:16px}
+.actionWorkflow{display:grid;grid-template-columns:34px minmax(0,1fr) auto auto auto;gap:12px;align-items:center;padding:14px 17px;border-bottom:1px solid #202734}
+.actionWorkflow:last-child,.actionRun:last-child,.artifactRow:last-child,.resourceRow:last-child{border-bottom:0}
+.actionWorkflow small,.actionRun small,.resourceRow small,.jobCard small{display:block;color:var(--muted);margin-top:3px}
+.actionIcon{width:29px;height:29px;display:grid;place-items:center;border-radius:50%;background:#173b2a;color:#55e391;border:1px solid #286445}
+.actionActive{font-size:11px;color:#5ee58e;border:1px solid #286445;background:#143323;border-radius:18px;padding:3px 8px}
+.actionWorkflow button,.actionRun button,.artifactRow button,.resourceRow button,.jobCard button{padding:6px 9px;font-size:12px}
+.actionStats{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--border)}
+.actionStats>div{padding:17px;background:#10161e}
+.actionStats b{font-size:25px;display:block}.actionStats small{color:var(--muted)}
+.actionFeatureList{display:grid;gap:8px;padding:16px;color:#aab6c7;font-size:12px}
+.actionRun{display:grid;grid-template-columns:13px minmax(0,1fr) auto 45px 30px;gap:11px;align-items:center;padding:13px 17px;border-bottom:1px solid #202734;cursor:pointer}
+.actionRun:hover{background:#131a23}
+.runDot{width:10px;height:10px;border-radius:50%;display:inline-block;background:#707c8c}
+.runDot.success{background:#42dc87}.runDot.failure{background:#ff6878}.runDot.cancelled{background:#8994a3}.runDot.queued,.runDot.running{background:#e8ae61}
+.actionRun strong{font-size:11px;text-transform:uppercase;color:#aeb9c8}
+.runDetails{padding:18px}.runHeader{display:flex;align-items:center;justify-content:space-between;gap:10px}.statusPill{font-size:11px;border-radius:18px;padding:4px 9px;text-transform:uppercase}.statusPill.success{color:#62e89b;background:#173a2a}.statusPill.failure{color:#ff8792;background:#421d25}.statusPill.cancelled{color:#aeb8c7;background:#252c36}.statusPill.queued,.statusPill.running{color:#ffd08a;background:#3c2b18}.runDetails p{color:var(--muted);font-size:12px}
+.editorActions{display:flex;gap:7px}.workflowEditor{display:grid;grid-template-columns:220px minmax(0,1fr);min-height:570px}.workflowEditor aside{display:grid;align-content:start;gap:3px;padding:15px;background:#10161e;border-right:1px solid var(--border)}.workflowEditor aside span{color:#718096;font-size:11px;text-transform:uppercase;letter-spacing:.07em;margin:12px 7px 4px}.workflowEditor aside button{border:0;text-align:left;background:transparent;padding:7px 8px;color:#aebbd0}.workflowEditor aside button:hover{background:#18202c}.workflowEditor textarea{min-height:570px;width:100%;border:0;border-radius:0;background:#080c11;color:#dce7f3;padding:19px;font:13px/1.7 "SFMono-Regular",Consolas,monospace;resize:vertical;outline:none}
+.yamlHints{display:flex;gap:6px;flex-wrap:wrap;padding:12px 15px;border-top:1px solid var(--border);background:#10161e}.yamlHints span{font:11px ui-monospace,monospace;color:#9ab5ff;border:1px solid #30405c;border-radius:5px;padding:3px 6px}
+.jobList{padding:14px}.jobCard{display:grid;grid-template-columns:16px minmax(0,1fr) auto auto;gap:11px;align-items:center;padding:12px;border:1px solid var(--border);border-radius:9px;background:#111820}.stepList{margin:12px 0 0 14px;border-left:1px solid #334052;padding-left:16px}.stepList>div{display:grid;grid-template-columns:20px 1fr auto;gap:8px;padding:9px 0;font-size:13px}.stepList small{color:var(--muted)}
+.actionLogs{margin:0;min-height:470px;max-height:650px;overflow:auto;padding:18px;background:#070a0e;color:#b9e8c9;font:12px/1.75 "SFMono-Regular",Consolas,monospace;white-space:pre-wrap}
+.artifactRow,.resourceRow{display:grid;grid-template-columns:30px minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:14px 17px;border-bottom:1px solid #202734}.artifactRow>div{min-width:0}.artifactRow small{display:block;color:var(--muted);margin-top:3px}.artifactRow>span{font-size:20px;color:#8eb0ff}.resourceRow code{color:#a9c3ff;background:#0a0e14;padding:5px 8px;border-radius:5px}.secretWarning{margin:14px 17px;padding:10px 12px;border:1px solid #624e29;border-radius:8px;background:#241c0e;color:#d8bd82;font-size:12px}.runnerSummary{padding:15px 17px;color:#9ba7b7;border-bottom:1px solid var(--border)}
+@media(max-width:950px){.actionsTop{align-items:flex-start;flex-direction:column}.actionsTopBtns{width:100%}.actionsTopBtns button{flex:1}.actionsGrid{grid-template-columns:1fr}}
+@media(max-width:700px){.actionsTabs{width:100%}.workflowEditor{grid-template-columns:1fr}.workflowEditor aside{border-right:0;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap}.workflowEditor aside span{width:100%}.workflowEditor textarea{min-height:460px}.actionWorkflow{grid-template-columns:30px 1fr auto}.actionWorkflow button{display:none}.actionRun{grid-template-columns:12px 1fr auto}.actionRun span:nth-last-child(2){display:none}.artifactRow,.resourceRow{grid-template-columns:28px 1fr auto}.artifactRow button,.resourceRow button{display:none}}
