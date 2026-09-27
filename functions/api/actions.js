@@ -177,7 +177,7 @@ export async function onRequestPost({request,env}){
     return json({ok:true,run:r});
   }
   if(body.action==="rerun"){
-    const r=await getRun(env.actions,body.run_id);
+    const r=await getRun(env.actions,body.run_id,user.id);
     if(!r)return json({error:"Run not found"},404);
     const next=await makeRun(r.name,r.head_branch,r.yuml,r.yuml_plan,env.actions,user.id);
     memory.set(next.id,{kind:"run",...next});
