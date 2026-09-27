@@ -1,81 +1,45 @@
-export async function onRequestPost({ request, env }) {
-  const cors = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "content-type",
-    "Content-Type": "application/json"
-  };
-
-  try {
-    const body = await request.json();
-    const message = typeof body?.message === "string" ? body.message.trim() : "";
-    const history = Array.isArray(body?.history) ? body.history.slice(-12) : [];
-
-    if (!message) {
-      return new Response(JSON.stringify({ error: "Message is required." }), { status: 400, headers: cors });
-    }
-
-    if (!env.POLLINATIONS_API_KEY) {
-      return new Response(JSON.stringify({
-        error: "POLLINATIONS_API_KEY is not configured.",
-        provider: "pollinations"
-      }), { status: 503, headers: cors });
-    }
-
-    const messages = [
-      {
-        role: "system",
-        content: "You are GutHeb AI, the developer assistant inside the GutHeb platform. Be concise, practical and honest. Help with repository structure, code, README files, licenses, packages, issues, pull requests, workflows and Git concepts. Never claim an action was performed unless GutHeb actually performed it through a connected tool."
-      },
-      ...history.map(x => ({
-        role: x.role === "user" ? "user" : "assistant",
-        content: String(x.text || "")
-      })),
-      { role: "user", content: message }
-    ];
-
-    const upstream = await fetch("https://gen.pollinations.ai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": "Bearer " + env.POLLINATIONS_API_KEY,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: env.POLLINATIONS_MODEL || "openai/gpt-5.4-nano",
-        messages,
-        temperature: 0.2
-      })
-    });
-
-    if (!upstream.ok) {
-      const detail = await upstream.text();
-      return new Response(JSON.stringify({
-        error: "Pollinations provider error.",
-        detail: detail.slice(0, 500)
-      }), { status: 502, headers: cors });
-    }
-
-    const data = await upstream.json();
-    const output = data?.choices?.[0]?.message?.content || "No response.";
-
-    return new Response(JSON.stringify({
-      output,
-      provider: "pollinations"
-    }), { status: 200, headers: cors });
-  } catch {
-    return new Response(JSON.stringify({ error: "Invalid AI request." }), {
-      status: 400,
-      headers: cors
-    });
+const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"content-type","Content-Type":"application/json","Cache-Control":"no-store"}});
+const safePath=p=>String(p||"").trim().replace(/^\/+|^\.\.\//g,"");
+function parseModel(raw){
+  const text=String(raw||"").trim().replace(/^\`\`\`(?:json)?\s*/i,"").replace(/\s*\`\`\`$/,"");
+  try{return JSON.parse(text)}catch{
+    const a=text.indexOf("{"),b=text.lastIndexOf("}");
+    if(a>=0&&b>a){try{return JSON.parse(text.slice(a,b+1))}catch{}}
   }
+  return {message:text,operations:[]};
 }
-
-export async function onRequestOptions() {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "content-type",
-      "Access-Control-Allow-Methods": "POST, OPTIONS"
-    }
-  });
+export async function onRequestPost({request,env}){
+  try{
+    const body=await request.json();
+    const message=typeof body?.message==="string"?body.message.trim():"";
+    if(!message)return json({error:"Message is required."},400);
+    if(!env.POLLINATIONS_API_KEY)return json({error:"POLLINATIONS_API_KEY is not configured.",provider:"pollinations"},503);
+    const repo=body?.repo&&typeof body.repo==="object"?body.repo:null;
+    const files=repo?.files&&typeof repo.files==="object"?repo.files:{};
+    const context=repo?JSON.stringify({owner:repo.owner,name:repo.name,description:repo.description,visibility:repo.visibility,language:repo.language,files:Object.keys(files),folders:repo.folders||[]}).slice(0,18000):"No repository is currently selected.";
+    const system=`You are GutHeb AI, an autonomous developer assistant inside GutHeb.
+You can propose REAL repository changes. When a repository is selected, convert the user's request into concrete operations whenever possible.
+Never claim an operation happened. Return JSON only with this exact shape:
+{"message":"short user-facing summary","operations":[{"type":"write_file","path":"README.md","content":"..."},{"type":"delete_file","path":"old.txt"},{"type":"create_folder","path":"src"}],"tests":[]}
+Allowed operation types: write_file, delete_file, create_folder.
+Paths must be relative and must not contain .. .
+If the user asks to create or edit code, actually provide the complete file content in write_file.
+If the user asks to create a folder, use create_folder.
+If the request is informational only, operations can be empty.
+Do not output markdown fences around the JSON.
+Selected repository context:
+${context}`;
+    const history=Array.isArray(body?.history)?body.history.slice(-10):[];
+    const messages=[{role:"system",content:system},...history.map(x=>({role:x.role==="user"?"user":"assistant",content:String(x.text||"")})),{role:"user",content:message}];
+    const upstream=await fetch("https://gen.pollinations.ai/v1/chat/completions",{method:"POST",headers:{"Authorization":"Bearer "+env.POLLINATIONS_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({model:env.POLLINATIONS_MODEL||"openai/gpt-5.4-nano",messages,temperature:0.1})});
+    if(!upstream.ok)return json({error:"Pollinations provider error.",detail:(await upstream.text()).slice(0,500)},502);
+    const data=await upstream.json();
+    const raw=data?.choices?.[0]?.message?.content||"";
+    const out=parseModel(raw);
+    out.operations=Array.isArray(out.operations)?out.operations.slice(0,20).map(op=>{const x={...op};if(x.path)x.path=safePath(x.path);return x}).filter(op=>["write_file","delete_file","create_folder"].includes(op.type)&&op.path&&!op.path.includes("..")):[];
+    out.tests=Array.isArray(out.tests)?out.tests.slice(0,10):[];
+    out.message=String(out.message||"Listo.").slice(0,2000);
+    return json({...out,provider:"pollinations"});
+  }catch(e){return json({error:e?.message||"Invalid AI request."},400)}
 }
+export async function onRequestOptions(){return new Response(null,{status:204,headers:{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"content-type","Access-Control-Allow-Methods":"POST,OPTIONS"}})}
