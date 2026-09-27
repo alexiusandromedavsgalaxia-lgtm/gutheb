@@ -332,7 +332,9 @@ function Marketplace({repos,selectedRepo,saveLocalRepo,user,flash}){
     next.files[path]=item.definition;
     if(!next.folders.includes(".gh"))next.folders.push(".gh");
     if(!next.folders.includes(".gh/yuml"))next.folders.push(".gh/yuml");
-    saveLocalRepo(next);
+    setRepos(xs=>xs.map(r=>r.id===target.id||((r.owner||user.name)=== (target.owner||user.name) && r.name===target.name)?next:r));
+    if(selectedRepo?.id===target.id || (selectedRepo?.name===target.name && selectedRepo?.owner===target.owner)) setSelectedRepo(next);
+    fetch("/api/account",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"repo",repo:next})}).catch(()=>{});
     const nextInstalled=[...installed,item.id];
     setInstalled(nextInstalled);
     localStorage.setItem("gutheb-market-installed",JSON.stringify(nextInstalled));
