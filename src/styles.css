@@ -563,3 +563,100 @@ textarea{min-height:110px;resize:vertical}
   .repoToolbar .branchSelect{flex:1}
   .readmeBody{padding:20px}
 }
+
+/* GitHub repository visual clone */
+.repoAppbody .leftnav{display:none}
+.repoAppbody .main{margin-left:0;width:100%;padding:0;background:#0d1117}
+.repoGlobalTop .wordmark{display:none}
+.repoGlobalTop{padding-left:16px}
+.repoGlobalTop .topnav{gap:0}
+.repoGlobalTop .topnav button{padding:0 10px;font-size:14px}
+.repoGlobalTop .topnav button:hover,.repoGlobalTop .topnav button.repoTopActive{color:#f0f6fc}
+.repoPage{width:100%;max-width:1280px;margin:0 auto;padding:0 32px 80px;box-sizing:border-box;color:#e6edf3}
+.repoTitleBar{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:28px 0 18px}
+.repoTitle{min-width:0}
+.repoCrumb{display:flex;align-items:center;gap:5px;font-size:20px}
+.repoCrumb button{border:0;background:none;padding:0;color:#58a6ff;font-size:20px;cursor:pointer}
+.repoCrumb strong{font-weight:600;color:#f0f6fc}
+.repoTitle p{margin:7px 0 0;color:#8b949e;font-size:14px}
+.repoHeaderActions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.repoHeaderActions button,.repoToolbar button,.countButton{
+  border:1px solid #30363d;background:#21262d;color:#f0f6fc;border-radius:6px;
+  min-height:32px;padding:5px 10px;font-size:12px
+}
+.repoHeaderActions button b{color:#8b949e;font-weight:500}
+.repoHeaderActions button:hover,.repoToolbar button:hover{background:#30363d;border-color:#8b949e}
+.repoTabs{display:flex;align-items:flex-end;gap:0;border-bottom:1px solid #30363d;margin:0 0 24px;overflow:auto}
+.repoTabs button{position:relative;border:0;background:transparent;color:#8b949e;padding:14px 13px 13px;font-size:13px;white-space:nowrap}
+.repoTabs button:hover{color:#f0f6fc;background:#161b22}
+.repoTabs button.sel{color:#f0f6fc;font-weight:600}
+.repoTabs button.sel:after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:2px;background:#f78166;border-radius:2px}
+.repoTabs .repoSettingsTab{margin-left:auto}
+.repoGrid{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:28px;align-items:start}
+.repoCode{min-width:0}
+.repoToolbar{display:flex;justify-content:space-between;gap:10px;margin-bottom:16px}
+.repoToolbarLeft,.repoToolbarRight{display:flex;gap:8px;align-items:center}
+.branchSelect{display:flex;align-items:center;gap:5px;border:1px solid #30363d;background:#21262d;border-radius:6px;padding:0 8px;height:32px;color:#f0f6fc;font-size:12px}
+.branchSelect select{border:0;background:transparent;color:#f0f6fc;font-size:12px;outline:none}
+.branchSelect option{background:#161b22}
+.countButton{background:transparent;color:#8b949e}
+.goFile{min-width:110px;text-align:left;color:#8b949e!important}
+.codeGreen{background:#238636!important;border-color:#2ea043!important;color:#fff!important;font-weight:600}
+.codeGreen:hover{background:#2ea043!important}
+.repoFileCard{border:1px solid #30363d;border-radius:6px;overflow:hidden;background:#0d1117}
+.repoCommitHead{height:48px;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:12px}
+.commitAuthor{display:flex;align-items:center;gap:7px;min-width:0}
+.commitAuthor span:not(.miniAvatar){color:#8b949e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.commitMeta{color:#8b949e;display:flex;gap:10px}
+.commitMeta b{color:#58a6ff;font-weight:400}
+.repoFilesList{background:#0d1117}
+.repoFileRow{min-height:42px;display:grid;grid-template-columns:minmax(220px,1fr) minmax(160px,1fr) 90px;align-items:center;border-bottom:1px solid #21262d;padding:0 16px;font-size:13px}
+.repoFileRow:last-child{border-bottom:0}
+.repoFileRow button{display:flex;align-items:center;gap:8px;min-width:0;border:0;background:none;color:#e6edf3;text-align:left;padding:0;cursor:pointer}
+.repoFileRow button:hover{color:#58a6ff}
+.repoFileRow>span{color:#8b949e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.repoFileRow time{color:#8b949e;font-size:12px;text-align:right}
+.fileIcon{width:16px;text-align:center;color:#8b949e;flex:0 0 16px}
+.folderIcon{color:#8b949e}
+.repoEmptyFiles{padding:28px;text-align:center;color:#8b949e}
+.githubReadme{margin-top:20px;border:1px solid #30363d;border-radius:6px;background:#0d1117}
+.githubReadme .readmeHead{background:#161b22;border-bottom:1px solid #30363d;padding:10px 16px;display:flex;justify-content:space-between;color:#8b949e;font-size:12px}
+.githubReadme .readmeBody{padding:28px 32px}
+.githubReadme .readmeBody h1{font-size:30px;line-height:1.25;margin:0 0 18px;color:#f0f6fc}
+.githubReadme .readmeBody p{font-size:14px;line-height:1.6;color:#c9d1d9;white-space:pre-wrap}
+.repoEditorCard{margin-top:20px;border-color:#30363d}
+.editorFooter{padding:10px 12px;border-top:1px solid #30363d;background:#161b22;display:flex;justify-content:flex-end}
+.githubAside{border-left:0;padding:0 0 30px 4px}
+.githubAside section{border-bottom:1px solid #21262d;padding:0 0 20px;margin:0 0 20px}
+.githubAside h3{font-size:16px;color:#f0f6fc;margin:0 0 10px}
+.githubAside p{font-size:13px;line-height:1.5;color:#8b949e}
+.githubAside a,.asideLink{display:block;color:#58a6ff;font-size:13px;margin:7px 0;cursor:pointer}
+.githubAside .muted{color:#8b949e}
+.contributor{display:grid;grid-template-columns:30px 1fr;column-gap:8px;align-items:center}
+.contributor .miniAvatar{grid-row:span 2}
+.contributor b{font-size:13px}
+.contributor small{color:#8b949e}
+.languageBar{height:8px;border-radius:8px;overflow:hidden;background:#30363d;margin:12px 0}
+.languageBar span{display:block;height:100%;background:#3178c6}
+.githubAside .languageBar+p{display:flex;justify-content:space-between}
+.repoSubpage{border:1px solid #30363d;border-radius:6px;padding:20px;background:#0d1117}
+.repoSubpageHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.repoSubpageHead h2{margin:0;font-size:20px}
+.visibility{font-size:12px!important;border:1px solid #30363d;border-radius:2em;padding:1px 7px;color:#8b949e!important}
+@media(max-width:900px){
+  .repoPage{padding:0 20px 60px}
+  .repoGrid{grid-template-columns:1fr}
+  .githubAside{padding-left:0}
+  .repoTitleBar{align-items:flex-start;flex-direction:column}
+  .repoHeaderActions{width:100%;overflow:auto}
+}
+@media(max-width:650px){
+  .repoPage{padding:0 12px 50px}
+  .repoGlobalTop .topnav{display:none}
+  .repoToolbar{flex-direction:column;align-items:stretch}
+  .repoToolbarLeft,.repoToolbarRight{overflow:auto}
+  .repoFileRow{grid-template-columns:minmax(180px,1fr) 90px}
+  .repoFileRow>span{display:none}
+  .repoFileRow time{display:block}
+  .githubReadme .readmeBody{padding:22px}
+}
