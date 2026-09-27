@@ -59,7 +59,7 @@ function App(){
     setUser(u); localStorage.setItem("gutheb-user",JSON.stringify(u)); go("home");
   }
   function logout(){setUser(null);localStorage.removeItem("gutheb-user");go("home");}
-  function register(e){e.preventDefault();login(e);}
+  async function register(e){e.preventDefault();try{const res=await fetch("/api/account",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"register",username:authForm.name,email:authForm.email,password:authForm.password})});const d=await res.json();if(!res.ok)throw new Error(d.error||"Registration failed");setUser(d.user);setProfile({...d.profile,username:d.user.name});localStorage.setItem("gutheb-user",JSON.stringify(d.user));localStorage.setItem("gutheb-profile",JSON.stringify(d.profile||{}));setRepos(d.repos||[]);go("home");}catch(err){flash(err.message);}}
   function createRepo(e){
     e.preventDefault();
     if(!newRepo.name.trim()) return flash("Repository name is required");
@@ -67,7 +67,7 @@ function App(){
       "README.md":"# "+newRepo.name.trim()+"\n\n"+(newRepo.description||"")+"\n",
       "LICENSE":"MIT License\n\nCopyright (c) "+new Date().getFullYear()+" "+user.name+"\n"
     },folders:[]};
-    setRepos(x=>[r,...x]); setNewRepo({name:"",description:"",visibility:"Public"}); flash("Repository created"); go("repos");
+    setRepos(x=>[r,...x]); fetch("/api/account",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"repo",repo:r})}).catch(()=>{}); setNewRepo({name:"",description:"",visibility:"Public"}); flash("Repository created"); go("repos");
   }
   function openRepo(r){
     const key=(r.owner||user.name)+"/"+r.name;
@@ -159,7 +159,7 @@ function App(){
 
   return <div className="gh">
     <header className="top">
-      <button className="logo" onClick={()=>go("home")} aria-label="GutHeb home"><img src="/gutheb-logo.svg" alt="" /></button>
+      <button className="logo" onClick={()=>go("home")} aria-label="GutHeb home"><img src="/gutheb-logo.svg?v=20260927" alt="" /></button>
       <div className="wordmark" onClick={()=>go("home")}>GutHeb</div>
       <div className="search"><span>⌕</span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search or jump to..." /><kbd>/</kbd></div>
       <nav className="topnav">
