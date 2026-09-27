@@ -1,0 +1,3 @@
+GutHeb deployment trigger
+Commit: 60a1f94 / ee535dc
+This file intentionally changes on forced redeploys so Cloudflare Pages receives a fresh build trigger.
