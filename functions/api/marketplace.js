@@ -9,6 +9,26 @@ async function currentUser(request,env){
   const tokenHash=await sha(m[1]);
   return users.prepare("SELECT u.id,u.username,u.email FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(tokenHash,new Date().toISOString()).first();
 }
+async function ensureSchema(db){
+  await db.batch([
+    db.prepare(`CREATE TABLE IF NOT EXISTS actions (
+      id TEXT PRIMARY KEY,
+      owner_id TEXT NOT NULL,
+      author_name TEXT NOT NULL,
+      slug TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      version TEXT NOT NULL,
+      description TEXT NOT NULL,
+      definition TEXT NOT NULL,
+      published INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_actions_published_updated ON actions(published, updated_at DESC)`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_actions_owner ON actions(owner_id)`)
+  ]);
+}
+
 function slugify(value){
   return String(value||"").trim().toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,80);
 }
@@ -16,6 +36,7 @@ function slugify(value){
 export async function onRequestGet({request,env}){
   const db=env.actions;
   if(!db)return json({error:"env.actions is not bound to the guthebactions D1 database."},503);
+  await ensureSchema(db);
   const u=new URL(request.url),op=u.searchParams.get("op")||"actions";
   if(op==="actions"){
     const rows=await db.prepare("SELECT id,owner_id,author_name,slug,name,version,description,definition,created_at,updated_at FROM actions WHERE published=1 ORDER BY updated_at DESC").all();
