@@ -1,0 +1,14 @@
+action "DRF Run Build" {
+  trigger push branch "main"
+  runner linux
+  steps {
+    checkout
+    install "xorriso"
+    run "git switch -c /iso || git switch /iso"
+    build {
+      command "xorriso -as mkisofs -o .iso ."
+      output ".iso"
+    }
+    artifact ".iso" from "./.iso"
+  }
+}
