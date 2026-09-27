@@ -44,7 +44,7 @@ export async function onRequestPost({request,env}){
   const conflict=await db.prepare("SELECT id FROM actions WHERE slug=?").bind(slug).first();
   if(conflict)return json({error:"An Action with this name already exists in the Marketplace."},409);
   const id=crypto.randomUUID(),now=new Date().toISOString();
-  await db.prepare("INSERT INTO actions(id,owner_id,author_name,slug,name,version,description,definition,published,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,1,?,?,?)")
+  await db.prepare("INSERT INTO actions(id,owner_id,author_name,slug,name,version,description,definition,published,created_at,updated_at) VALUES(?,?,?,?,?,?,?, ?,1,?,?)")
     .bind(id,user.id,user.username,slug,name,version,description,definition,now,now).run();
   const row=await db.prepare("SELECT id,owner_id,author_name,slug,name,version,description,definition,created_at,updated_at FROM actions WHERE id=?").bind(id).first();
   return json({ok:true,action:row},201);
