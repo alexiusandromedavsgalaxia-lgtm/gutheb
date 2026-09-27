@@ -2,7 +2,7 @@
 // This is NOT YAML. It is parsed into a GutHeb-native action plan.
 export function parseYUML(source=""){
   const text=String(source).replace(/\r/g,"");
-  const tokens=text.match(/"[^"\\]*(?:\\.[^"\\]*)*"|[A-Za-z_][A-Za-z0-9_.-]*|\{|\}|=/g)||[];
+  const tokens=text.match(/"[^"\\]*(?:\\.[^"\\]*)*"|[A-Za-z_][A-Za-z0-9_.-]*|\{|\}|=|\[|\]/g)||[];
   let i=0;
   const out={kind:"action",name:"Untitled action",trigger:{type:"manual"},runner:"linux",env:{},steps:[],matrix:null};
   const value=()=>{const t=tokens[i++];if(!t)throw new Error("YUML: expected value");if(t[0]==='"')return JSON.parse(t);return t};
