@@ -8,7 +8,7 @@ const seedPRs = [];
 
 function App(){
   const [user,setUser]=useState(()=>JSON.parse(localStorage.getItem("gutheb-user")||"null"));
-  const [page,setPage]=useState(()=>{const p=location.hash.replace("#/","");if(p)return p;const cs=location.pathname.match(/^\/codespace\/([^/]+)\/session\/([^/]+)\/?$/);if(cs)return "codespace/"+decodeURIComponent(cs[1])+"/session/"+decodeURIComponent(cs[2]);const m=location.pathname.match(/^\/([^/]+)\/([^/]+)\.gut\/?$/);return m?"repo/"+encodeURIComponent(m[2]):"home";});
+  const [page,setPage]=useState(()=>{const cs=location.pathname.match(/^\/codespace\/([^/]+)\/session\/([^/]+)\/?$/);if(cs)return "codespace/"+decodeURIComponent(cs[1])+"/session/"+decodeURIComponent(cs[2]);const p=location.hash.replace("#/","");if(p)return p;const m=location.pathname.match(/^\/([^/]+)\/([^/]+)\.gut\/?$/);return m?"repo/"+encodeURIComponent(m[2]):"home";});
   const [auth,setAuth]=useState("login");
   const [authForm,setAuthForm]=useState({name:"",email:"",password:""});
   const [notice,setNotice]=useState("");
@@ -35,7 +35,7 @@ function App(){
   const [repoBranches,setRepoBranches]=useState(()=>JSON.parse(localStorage.getItem("gutheb-branches-v1")||"{}"));
 
   useEffect(()=>{
-    const onRoute=()=>{const p=location.hash.replace("#/","");if(p){setPage(p);return;}const cs=location.pathname.match(/^\/codespace\/([^/]+)\/session\/([^/]+)\/?$/);setPage(cs?"codespace/"+decodeURIComponent(cs[1])+"/session/"+decodeURIComponent(cs[2]):"home")};
+    const onRoute=()=>{const cs=location.pathname.match(/^\/codespace\/([^/]+)\/session\/([^/]+)\/?$/);if(cs){setPage("codespace/"+decodeURIComponent(cs[1])+"/session/"+decodeURIComponent(cs[2]));return;}const p=location.hash.replace("#/","");setPage(p||"home")};
     addEventListener("hashchange",onRoute); addEventListener("popstate",onRoute); return()=>{removeEventListener("hashchange",onRoute);removeEventListener("popstate",onRoute)};
   },[]);
   useEffect(()=>{
@@ -351,7 +351,7 @@ function Codespaces({repos,user,saveLocalRepo,flash,go,sessionId:routeSessionId,
   const [sessionId,setSessionId]=useState(()=>routeSessionId||localStorage.getItem("gutheb-codespace-session")||"");
   const [path,setPath]=useState(()=>localStorage.getItem("gutheb-codespace-file")||"");
   const [draft,setDraft]=useState(""); const [terminal,setTerminal]=useState(""); const [cmd,setCmd]=useState(""); const [agent,setAgent]=useState(false); const [workspaceFiles,setWorkspaceFiles]=useState({}); const [agentPrompt,setAgentPrompt]=useState(""); const [side,setSide]=useState("explorer");
-  const repo=repos.find(r=>r.name===repoName)||null; const files=workspaceFiles;
+  const repo=repos.find(r=>r.name===repoName)||null; const files=workspaceFiles;\n  useEffect(()=>{if(!repoName&&repos.length){setRepoName(repos[0].name);localStorage.setItem("gutheb-codespace-repo",repos[0].name)}else if(repoName&&!repo){const first=repos[0];if(first){setRepoName(first.name);localStorage.setItem("gutheb-codespace-repo",first.name)}}},[repos,repoName]);
   useEffect(()=>{if(routeSessionId){setSessionId(routeSessionId);setOpen(true);localStorage.setItem("gutheb-codespace-session",routeSessionId)}},[routeSessionId]);
   useEffect(()=>{if(repoName&&repo){setWorkspaceFiles({...repo.files});}},[repoName,repo?.id]);
   useEffect(()=>{if(path&&files[path]!==undefined)setDraft(String(files[path]||""));},[path,workspaceFiles]);
