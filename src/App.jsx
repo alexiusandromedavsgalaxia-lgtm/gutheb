@@ -439,7 +439,7 @@ function Pages({repos,user,flash,saveLocalRepo}){
     </div>
     {error&&<div className="actionError">{error}</div>}
     <Panel title="Preview" action={<button onClick={doPreview} disabled={!repo}>Preview index.html</button>}>
-      {preview?<iframe title="GutHeb Pages preview" className="pagesPreview" srcDoc={preview}/>:<div className="empty">Preview uses the repository HTML output. React/Vite projects should have a built index.html in the configured output directory first.</div>}
+      {preview?<iframe title="GutHeb Pages preview" className="pagesPreview" sandbox="allow-scripts" srcDoc={preview}/>:<div className="empty">Preview uses the repository HTML output. React/Vite projects should have a built index.html in the configured output directory first.</div>}
     </Panel>
     <Panel title="Deployments" action={<button onClick={loadDeployments}>↻ Refresh</button>}>
       {deployments.length?deployments.map((d,i)=><div className="resourceRow" key={d.id||i}><div><b>{d.short_id||d.id||"deployment"}</b><small>{d.environment||"production"} · {d.latest_stage?.status||d.status||"created"} · {d.created_on||""}</small></div>{(d.url||d.aliases?.[0])&&<a href={d.url||d.aliases?.[0]} target="_blank" rel="noreferrer">Open ↗</a>}</div>):<div className="empty">No deployments loaded yet.</div>}
