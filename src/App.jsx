@@ -108,7 +108,7 @@ function App(){
     for(const [path,text] of files){const name=enc.encode(path),data=enc.encode(String(text??"")),crc=crc32(data);const local=join([new Uint8Array([80,75,3,4,20,0,0,0,0,0,0,0,0,0]),u32(crc),u32(data.length),u32(data.length),u16(name.length),u16(0),name,data]);chunks.push(local);central.push(join([new Uint8Array([80,75,1,2,20,0,20,0,0,0,0,0,0,0]),u32(crc),u32(data.length),u32(data.length),u16(name.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(offset),name]));offset+=local.length}
     const cd=join(central),body=join(chunks),end=join([new Uint8Array([80,75,5,6,0,0,0,0]),u16(files.length),u16(files.length),u32(cd.length),u32(body.length),u16(0)]);const blob=new Blob([body,cd,end],{type:"application/zip"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=repo.name+".zip";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);flash("ZIP downloaded");
   }
-  function openInWorkers(repo){localStorage.setItem("gutheb-workers-open",JSON.stringify({repo:repo.owner+"/"+repo.name,files:repo.files||{},folders:repo.folders||[]}));window.location.href="/workers/#/workspace/"+encodeURIComponent(repo.name); }
+  function openInWorkers(repo){if(!repo)return;const id=crypto.randomUUID();localStorage.setItem("gutheb-codespace-repo",repo.name);localStorage.setItem("gutheb-codespace-open","1");localStorage.setItem("gutheb-codespace-session",id);localStorage.setItem("gutheb-codespace-file",Object.keys(repo.files||{})[0]||"");go("codespace/"+encodeURIComponent(repo.owner||user.name)+"/session/"+encodeURIComponent(id));}
   function createBranch(){
     if(!selectedRepo)return;
     if(selectedRepo.owner!==user.name)return flash("Only the repository owner can create branches");
