@@ -3,7 +3,7 @@ const enc=new TextEncoder();
 const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("");
 async function sha(s){return hex(await crypto.subtle.digest("SHA-256",enc.encode(s)))}
 async function passwordHash(password,salt){return sha(salt+":"+password)}
-function cookie(name,value,maxAge){return name+"="+value+"; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age="+maxAge}
+function cookie(name,value,maxAge){return name+"="+value+"; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age="+maxAge+"; Priority=High"}
 function clearCookie(name){return name+"=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0"}
 function dbs(env){
   return {
@@ -60,7 +60,7 @@ export async function onRequestPost({request,env}){
     const owned=await repos.prepare("SELECT * FROM repos WHERE owner_id=? ORDER BY updated_at DESC").bind(row.id).all();
     return new Response(JSON.stringify({user:{id:row.id,name:row.username,email:row.email},profile:p,repos:owned.results||[],storage:{users:"users",repos:"repos",archive:!!archive,zip:!!zip}}),{status:200,headers:{"Content-Type":"application/json","Cache-Control":"no-store","Set-Cookie":cookie("gutheb_session",token,60*60*24*30)}});
   }
-  const user=await userFrom(request,env);if(!user)return json({error:"Not authenticated."},401);
+  const user=await userFrom(request,env);if(!user){if(action==="logout")return new Response(JSON.stringify({ok:true}),{status:200,headers:{"Content-Type":"application/json","Cache-Control":"no-store","Set-Cookie":clearCookie("gutheb_session")}});return json({error:"Not authenticated."},401);}
   if(action==="me"){
     const p=await users.prepare("SELECT * FROM profiles WHERE user_id=?").bind(user.id).first();
     const rs=await repos.prepare("SELECT * FROM repos WHERE owner_id=? ORDER BY updated_at DESC").bind(user.id).all();
