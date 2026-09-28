@@ -56,7 +56,8 @@ export async function onRequestPost({request,env}){
     if(output)files=files.filter(([p])=>p===output||p.startsWith(output+"/")).map(([p,c])=>[p.slice(output.length).replace(/^\//,"")||"index.html",c]);
     else files=files.filter(([p])=>!p.startsWith(".git/")&&!p.startsWith(".gut/")&&!p.startsWith(".gh/")&&!p.startsWith("node_modules/"));
     if(!files.length)return json({error:"There are no deployable files. For React/Vite, build the project first so the configured output directory exists."},400);
-    if(files.length>20000)return json({error:"Pages deployment is limited to 20,000 files."},400);\n    for(const [path,content] of files){if(new TextEncoder().encode(content).byteLength>25*1024*1024)return json({error:"File exceeds the 25 MiB Pages asset limit: "+path},400);}
+    if(files.length>20000)return json({error:"Pages deployment is limited to 20,000 files."},400);
+    for(const [path,content] of files){if(new TextEncoder().encode(content).byteLength>25*1024*1024)return json({error:"File exceeds the 25 MiB Pages asset limit: "+path},400);}
     let project;
     try{project=await cf(env,"/pages/projects/"+encodeURIComponent(projectName));}
     catch{project=await cf(env,"/pages/projects",{method:"POST",body:JSON.stringify({name:projectName,production_branch:branch,build_config:{build_command:String(config.buildCommand||""),destination_dir:output||"."}})});}
