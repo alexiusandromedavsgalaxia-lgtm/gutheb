@@ -444,7 +444,7 @@ function Pages({repos,user,flash,saveLocalRepo}){
     <Panel title="Deployments" action={<button onClick={loadDeployments}>↻ Refresh</button>}>
       {deployments.length?deployments.map((d,i)=><div className="resourceRow" key={d.id||i}><div><b>{d.short_id||d.id||"deployment"}</b><small>{d.environment||"production"} · {d.latest_stage?.status||d.status||"created"} · {d.created_on||""}</small></div>{(d.url||d.aliases?.[0])&&<a href={d.url||d.aliases?.[0]} target="_blank" rel="noreferrer">Open ↗</a>}</div>):<div className="empty">No deployments loaded yet.</div>}
     </Panel>
-    <div className="actionsRealNotice">GutHeb Pages uses Cloudflare Pages Direct Upload. The build configuration follows Pages presets, including React/Vite and static HTML. </div>
+    <div className="actionsRealNotice">GutHeb Pages uses Cloudflare Pages Direct Upload. The build configuration follows Pages presets, including React/Vite and static HTML.</div>
   </Page>
 }
 function Marketplace({repos,setRepos,selectedRepo,saveLocalRepo,user,flash}){
@@ -615,7 +615,7 @@ function Repo({repo,tab,setTab,tree,file,openFile,go,packages,user,repoBranches,
       <div className="repoTitle"><div className="repoCrumb"><button onClick={()=>go("profile")}>{repo.owner||"user"}</button><span>/</span><strong>{repo.name}</strong><span className={"visibility "+visibility}>{visibility}</span></div>{repo.description&&<p>{repo.description}</p>}</div>
       <div className="repoHeaderActions"><button>◉ <span>Watch</span> <b>0</b></button><button>⑂ <span>Fork</span> <b>{repo.forks||0}</b></button><button>☆ <span>Star</span> <b>{repo.stars||0}</b></button></div>
     </div>
-    <nav className="repoTabs">{["code","issues","pulls","actions","projects","wiki","security","insights"].map(x=><button className={tab===x?"sel":""} onClick={()=>{setMenu("");setTab(x)}} key={x}>{x==="pulls"?"Pull requests":x[0].toUpperCase()+x.slice(1)}</button>)}{owner&&<button className="repoSettingsTab" onClick={()=>setTab("settings")}>⚙ Settings</button>}</nav>
+    <nav className="repoTabs">{["code","issues","pulls","actions","projects","pages","wiki","security","insights"].map(x=><button className={tab===x?"sel":""} onClick={()=>{setMenu("");setTab(x)}} key={x}>{x==="pulls"?"Pull requests":x[0].toUpperCase()+x.slice(1)}</button>)}{owner&&<button className="repoSettingsTab" onClick={()=>setTab("settings")}>⚙ Settings</button>}</nav>
     {tab==="code"&&<div className="repoGrid"><main className="repoCode">
       <div className="repoToolbar"><div className="repoToolbarLeft">
         <label className="branchSelect">⑂ <select value={branch} onChange={e=>{selectBranch(e.target.value);goTree("")}}>{branches.map(b=><option key={b}>{b}</option>)}</select></label>
