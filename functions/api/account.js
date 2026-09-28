@@ -31,7 +31,8 @@ async function ensureRepoSchema(db){
     db.prepare("CREATE TABLE IF NOT EXISTS repos (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, name TEXT NOT NULL, description TEXT DEFAULT '', visibility TEXT DEFAULT 'Public', language TEXT DEFAULT '', license TEXT DEFAULT 'MIT', stars INTEGER DEFAULT 0, forks INTEGER DEFAULT 0, updated_at TEXT NOT NULL)"),
     db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS repos_owner_name_idx ON repos(owner_id,name)"),
     db.prepare("CREATE TABLE IF NOT EXISTS repo_files (repo_id TEXT NOT NULL, path TEXT NOT NULL, content TEXT DEFAULT '', PRIMARY KEY(repo_id,path))"),
-    db.prepare("CREATE TABLE IF NOT EXISTS repo_folders (repo_id TEXT NOT NULL, path TEXT NOT NULL, PRIMARY KEY(repo_id,path))")
+    db.prepare("CREATE TABLE IF NOT EXISTS repo_folders (repo_id TEXT NOT NULL, path TEXT NOT NULL, PRIMARY KEY(repo_id,path))"),
+    db.prepare("CREATE TABLE IF NOT EXISTS repo_commits (id TEXT PRIMARY KEY, repo_id TEXT NOT NULL, owner_id TEXT NOT NULL, branch TEXT NOT NULL, message TEXT NOT NULL, author TEXT NOT NULL, created_at TEXT NOT NULL, files_json TEXT NOT NULL)")
   ]);
 }
 export async function onRequestPost({request,env}){
@@ -75,6 +76,27 @@ export async function onRequestPost({request,env}){
       users.prepare("INSERT INTO profiles(user_id,username,bio,location,website,avatar) VALUES(?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET username=excluded.username,bio=excluded.bio,location=excluded.location,website=excluded.website,avatar=excluded.avatar").bind(user.id,username,String(p.bio||""),String(p.location||""),String(p.website||""),String(p.avatar||""))
     ]);
     return json({ok:true});
+  }
+  if(action==="commits"){
+    const repoId=String(b.repoId||"").trim();if(!repoId)return json({error:"Repository id required."},400);
+    const owned=await repos.prepare("SELECT id FROM repos WHERE id=? AND owner_id=?").bind(repoId,user.id).first();if(!owned)return json({error:"Repository does not belong to this account."},403);
+    const rows=await repos.prepare("SELECT id,repo_id,branch,message,author,created_at FROM repo_commits WHERE repo_id=? AND owner_id=? ORDER BY created_at DESC LIMIT 100").bind(repoId,user.id).all();
+    return json({commits:rows.results||[]});
+  }
+  if(action==="commit"){
+    const r=b.repo||{},repoId=String(r.id||"").trim(),message=String(b.message||"").trim(),branch=String(b.branch||"main").trim()||"main";
+    if(!repoId||!message)return json({error:"Repository and commit message are required."},400);
+    const owned=await repos.prepare("SELECT id FROM repos WHERE id=? AND owner_id=?").bind(repoId,user.id).first();if(!owned)return json({error:"Repository does not belong to this account."},403);
+    const now=new Date().toISOString(),commitId=crypto.randomUUID();
+    const files=Object.fromEntries(Object.entries(r.files||{}).map(([path,content])=>[String(path),String(content??"")]));
+    await repos.batch([
+      repos.prepare("DELETE FROM repo_files WHERE repo_id=?").bind(repoId),
+      repos.prepare("DELETE FROM repo_folders WHERE repo_id=?").bind(repoId),
+      repos.prepare("INSERT INTO repo_commits(id,repo_id,owner_id,branch,message,author,created_at,files_json) VALUES(?,?,?,?,?,?,?,?)").bind(commitId,repoId,user.id,branch,message,user.username,now,JSON.stringify(files))
+    ]);
+    const statements=[];for(const [path,content] of Object.entries(files))statements.push(repos.prepare("INSERT INTO repo_files(repo_id,path,content) VALUES(?,?,?)").bind(repoId,path,content));for(const path of r.folders||[])statements.push(repos.prepare("INSERT INTO repo_folders(repo_id,path) VALUES(?,?)").bind(repoId,path));for(let i=0;i<statements.length;i+=80)await repos.batch(statements.slice(i,i+80));
+    await repos.prepare("UPDATE repos SET updated_at=? WHERE id=? AND owner_id=?").bind(now,repoId,user.id).run();
+    return json({ok:true,commit:{id:commitId,repo_id:repoId,branch,message,author:user.username,created_at:now}});
   }
   if(action==="repo"){
     const r=b.repo||{},name=String(r.name||"").trim();if(!name)return json({error:"Repository name required."},400);
