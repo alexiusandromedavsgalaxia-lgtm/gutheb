@@ -201,7 +201,7 @@ function App(){
         <Nav icon="/gutheb-icons/actions.svg" text="Actions" page="actions" go={go}/>
         <Nav icon="/gutheb-icons/projects.svg" text="Projects" page="projects" go={go}/>
         <Nav icon="/gutheb-icons/discussions.svg" text="Discussions" page="discussions" go={go}/>
-        <Nav icon="/gutheb-icons/codespaces.svg" text="Codespaces" page="codespaces" go={go}/>
+        <Nav icon="/gutheb-icons/codespaces.svg" text="Codespaces" page="codespaces" go={go}/><Nav icon="/gutheb-icons/marketplace.svg" text="Pages" page="pages" go={go}/>
         <Nav icon="/gutheb-icons/marketplace.svg" text="Marketplace" page="marketplace" go={go}/><button className="navitem aiNav" onClick={()=>setAiOpen(true)}><span className="navicon"><img src="/gutheb-icons/ai.svg" alt="" /></span> GutHeb AI</button>
         <div className="navsep"/>
         <small>Repositories</small>
@@ -223,6 +223,7 @@ function App(){
         {page==="actions"&&<Actions repo={selectedRepo} flash={flash}/>}
         {page==="projects"&&<Projects/>}
         {page==="discussions"&&<Discussions/>}
+        {page==="pages"&&<Pages repos={repos} user={user} flash={flash} saveLocalRepo={saveLocalRepo}/>}
         {page==="codespaces"&&<Codespaces repos={repos.filter(r=>!r.owner||r.owner===user.name)} user={user} saveLocalRepo={saveLocalRepo} flash={flash} go={go}/>}\n        {page.startsWith("codespace/")&&<Codespaces repos={repos.filter(r=>!r.owner||r.owner===user.name)} user={user} saveLocalRepo={saveLocalRepo} flash={flash} go={go} sessionId={decodeURIComponent(page.split("/session/")[1]||"")} sessionPerson={decodeURIComponent(page.split("/")[1]||user.name)}/>}
         {page==="marketplace"&&<Marketplace repos={repos} setRepos={setRepos} selectedRepo={selectedRepo} saveLocalRepo={saveLocalRepo} user={user} flash={flash}/>}
         {page==="explore"&&<Explore/>}
@@ -407,6 +408,45 @@ function Codespaces({repos,user,saveLocalRepo,flash,go,sessionId:routeSessionId,
   </div>
 }
 
+function Pages({repos,user,flash,saveLocalRepo}){
+  const [repoId,setRepoId]=useState(()=>repos.find(r=>!r.owner||r.owner===user.name)?.id||"");
+  const repo=repos.find(r=>r.id===repoId)||null;
+  const [framework,setFramework]=useState("Static HTML"),[buildCommand,setBuildCommand]=useState(""),[outputDir,setOutputDir]=useState(""),[rootDir,setRootDir]=useState(""),[branch,setBranch]=useState("main"),[projectName,setProjectName]=useState(""),[preview,setPreview]=useState(""),[deploying,setDeploying]=useState(false),[error,setError]=useState(""),[deployments,setDeployments]=useState([]);
+  const presets={
+    "React / Vite":["npm run build","dist"],"Static HTML":["",""],"Node / custom":["npm run build","dist"],"Next.js static":["npx next build","out"],"Astro":["npm run build","dist"],"Custom":["",""]
+  };
+  useEffect(()=>{if(repo){setProjectName(repo.name);setBranch(repo.currentBranch||"main");detect(repo.id)}},[repo?.id]);
+  async function detect(id){try{const r=await fetch("/api/pages",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"detect",repoId:id})});const d=await r.json();if(r.ok){setFramework(d.framework||"Custom");setBuildCommand(d.buildCommand||"");setOutputDir(d.outputDir||"");}}catch{}}
+  function preset(v){setFramework(v);const p=presets[v]||["",""];setBuildCommand(p[0]);setOutputDir(p[1]);}
+  async function doPreview(){if(!repo)return;setError("");try{const r=await fetch("/api/pages",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"preview",repoId:repo.id,indexPath:outputDir?outputDir+"/index.html":"index.html"})});const d=await r.json();if(!r.ok)throw new Error(d.error||"Preview failed");setPreview(d.html)}catch(e){setError(e.message)}}
+  async function deploy(){if(!repo)return;setDeploying(true);setError("");try{const r=await fetch("/api/pages",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"deploy",repoId:repo.id,config:{projectName,framework,buildCommand,outputDir,rootDir,branch}})});const d=await r.json();if(!r.ok)throw new Error(d.error||"Deployment failed");setDeployments(x=>[d.deployment,...x]);flash("Pages deployed: "+(d.url||d.project));}catch(e){setError(e.message)}finally{setDeploying(false)}}
+  async function loadDeployments(){if(!projectName)return;try{const r=await fetch("/api/pages",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"deployments",projectName})});const d=await r.json();if(r.ok)setDeployments(d.deployments||[])}catch{}}
+  return <Page title="Pages" subtitle="Build and deploy websites from your GutHeb repositories. React, HTML, Vite, static sites, and custom build pipelines.">
+    <div className="panel pagesHero"><div><span className="marketEyebrow">GUTHEB PAGES</span><h2>Ship a site from your repository</h2><p>Configure the build, preview your HTML output, and deploy prebuilt assets to Cloudflare Pages.</p></div><button className="primary" onClick={deploy} disabled={!repo||deploying}>{deploying?"Deploying…":"Deploy"}</button></div>
+    <div className="pagesGrid">
+      <Panel title="Project">
+        <label>Repository<select value={repoId} onChange={e=>setRepoId(e.target.value)}>{repos.filter(r=>!r.owner||r.owner===user.name).map(r=><option key={r.id} value={r.id}>{r.owner||user.name}/{r.name}</option>)}</select></label>
+        <label>Project name<input value={projectName} onChange={e=>setProjectName(e.target.value)} placeholder="my-site"/></label>
+        <label>Framework<select value={framework} onChange={e=>preset(e.target.value)}>{Object.keys(presets).map(x=><option key={x}>{x}</option>)}</select></label>
+        <label>Branch<input value={branch} onChange={e=>setBranch(e.target.value)}/></label>
+      </Panel>
+      <Panel title="Build configuration">
+        <label>Root directory<input value={rootDir} onChange={e=>setRootDir(e.target.value)} placeholder="/"/></label>
+        <label>Build command<input value={buildCommand} onChange={e=>setBuildCommand(e.target.value)} placeholder="npm run build"/></label>
+        <label>Output directory<input value={outputDir} onChange={e=>setOutputDir(e.target.value)} placeholder="dist"/></label>
+        <div className="pagesPresetRow"><span>React/Vite: <code>npm run build</code> → <code>dist</code></span><span>HTML: no build → repository root</span></div>
+      </Panel>
+    </div>
+    {error&&<div className="actionError">{error}</div>}
+    <Panel title="Preview" action={<button onClick={doPreview} disabled={!repo}>Preview index.html</button>}>
+      {preview?<iframe title="GutHeb Pages preview" className="pagesPreview" srcDoc={preview}/>:<div className="empty">Preview uses the repository HTML output. React/Vite projects should have a built index.html in the configured output directory first.</div>}
+    </Panel>
+    <Panel title="Deployments" action={<button onClick={loadDeployments}>↻ Refresh</button>}>
+      {deployments.length?deployments.map((d,i)=><div className="resourceRow" key={d.id||i}><div><b>{d.short_id||d.id||"deployment"}</b><small>{d.environment||"production"} · {d.latest_stage?.status||d.status||"created"} · {d.created_on||""}</small></div>{(d.url||d.aliases?.[0])&&<a href={d.url||d.aliases?.[0]} target="_blank" rel="noreferrer">Open ↗</a>}</div>):<div className="empty">No deployments loaded yet.</div>}
+    </Panel>
+    <div className="actionsRealNotice">GutHeb Pages uses Cloudflare Pages Direct Upload. The build configuration follows Pages presets, including React/Vite and static HTML. </div>
+  </Page>
+}
 function Marketplace({repos,setRepos,selectedRepo,saveLocalRepo,user,flash}){
   const [tab,setTab]=useState("actions");
   const [q,setQ]=useState("");
