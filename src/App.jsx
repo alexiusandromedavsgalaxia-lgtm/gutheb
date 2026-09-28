@@ -43,7 +43,7 @@ function App(){
   },[]);
 
   function go(p){ if(String(p).startsWith("codespace/")){history.pushState({}, "", "/"+p);setPage(p);setNotice("");return;} location.hash="/"+p; setPage(p); setNotice(""); }
-  function flash(msg){setNotice(msg);setTimeout(()=>setNotice(""),2500);}
+  function flash(msg){const s=String(msg||"");if(/not authenticated/i.test(s))return;setNotice(s);setTimeout(()=>setNotice(""),2500);}
   useEffect(()=>localStorage.setItem("gutheb-repos-v2",JSON.stringify(repos)),[repos]);
   useEffect(()=>localStorage.setItem("gutheb-pinned",JSON.stringify(pinned)),[pinned]);
   useEffect(()=>localStorage.setItem("gutheb-packages",JSON.stringify(packages)),[packages]);
