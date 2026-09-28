@@ -545,8 +545,37 @@ function Repo({repo,tab,setTab,tree,file,openFile,go,packages,user,repoBranches,
   const [menu,setMenu]=useState("");
   const [release,setRelease]=useState(null);
   const [packageInfo,setPackageInfo]=useState(null);
-  const [rawOpen,setRawOpen]=useState(false);\n  const [commits,setCommits]=useState([]);\n  const [commitMessage,setCommitMessage]=useState("");\n  const [committing,setCommitting]=useState(false);
-  useEffect(()=>setDraft(file?.content||""),[file?.path]);\n  async function loadCommits(){try{const r=await fetch("/api/account",{method:"POST",credentials:"include",cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"commits",repoId:repo.id})});const d=await r.json();if(r.ok)setCommits(d.commits||[]);}catch{}}\n  useEffect(()=>{if(repo?.id)loadCommits()},[repo?.id]);\n  async function createCommit(){\n    if(!owner)return flash("Only the repository owner can commit changes");\n    const message=commitMessage.trim()||"Update files";\n    setCommitting(true);\n    try{\n      const payload={...repo,files:{...(repo.files||{})},folders:[...(repo.folders||[])]};\n      const r=await fetch("/api/account",{method:"POST",credentials:"include",cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"commit",repo:payload,message,branch})});\n      const d=await r.json();if(!r.ok)throw new Error(d.error||"Commit failed");\n      setCommitMessage("");setCommits(x=>[d.commit,...x]);flash("Commit created: "+message);\n    }catch(e){flash(e.message)}finally{setCommitting(false)}\n  }
+  const [rawOpen,setRawOpen]=useState(false);
+  const [commits,setCommits]=useState([]);
+  const [commitMessage,setCommitMessage]=useState("");
+  const [committing,setCommitting]=useState(false);
+  useEffect(()=>setDraft(file?.content||""),[file?.path]);
+  async function loadCommits(){
+    try{
+      const r=await fetch("/api/account",{method:"POST",credentials:"include",cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"commits",repoId:repo.id})});
+      const d=await r.json();
+      if(r.ok)setCommits(d.commits||[]);
+    }catch{}
+  }
+  useEffect(()=>{if(repo?.id)loadCommits()},[repo?.id]);
+  async function createCommit(){
+    if(!owner)return flash("Only the repository owner can commit changes");
+    const message=commitMessage.trim()||"Update files";
+    setCommitting(true);
+    try{
+      const payload={...repo,files:{...(repo.files||{})},folders:[...(repo.folders||[])]};
+      const r=await fetch("/api/account",{method:"POST",credentials:"include",cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"commit",repo:payload,message,branch})});
+      const d=await r.json();
+      if(!r.ok)throw new Error(d.error||"Commit failed");
+      setCommitMessage("");
+      setCommits(x=>[d.commit,...x]);
+      flash("Commit created: "+message);
+    }catch(e){
+      flash(e.message);
+    }finally{
+      setCommitting(false);
+    }
+  }
   const files=tree||[];
   const key=(repo.owner||user.name)+"/"+repo.name, branches=repoBranches[key]||["main"];
   const owner=repo.owner===user.name;
