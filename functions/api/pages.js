@@ -14,10 +14,10 @@ export async function onRequestPost({request,env}){
     const repo=await getRepo(repos,b.repoId,user.id);if(!repo)return json({error:"Repository not found."},404);
     const rows=await repos.prepare("SELECT path,content FROM repo_files WHERE repo_id=?").bind(repo.id).all();const files=rows.results||[];
     const names=new Set(files.map(x=>x.path));let framework="Static HTML",buildCommand="",outputDir="";
-    if(names.has("package.json")&&(names.has("vite.config.js")||names.has("vite.config.ts")||names.has("src/main.jsx")||names.has("src/main.tsx"))) {framework="React / Vite";buildCommand="npm run build";outputDir="dist";}
-    else if(names.has("package.json")){framework="Node / custom";buildCommand="npm run build";outputDir="dist";}
-    else if(names.has("next.config.js")||names.has("next.config.mjs")){framework="Next.js static";buildCommand="npx next build";outputDir="out";}
+    if(names.has("next.config.js")||names.has("next.config.mjs")){framework="Next.js static";buildCommand="npx next build";outputDir="out";}
     else if(names.has("astro.config.mjs")){framework="Astro";buildCommand="npm run build";outputDir="dist";}
+    else if(names.has("package.json")&&(names.has("vite.config.js")||names.has("vite.config.ts")||names.has("src/main.jsx")||names.has("src/main.tsx")||names.has("src/main.js")||names.has("src/main.ts"))) {framework="React / Vite";buildCommand="npm run build";outputDir="dist";}
+    else if(names.has("package.json")){framework="Node / custom";buildCommand="npm run build";outputDir="dist";}
     else if(names.has("index.html")){framework="Static HTML";buildCommand="";outputDir="";}
     return json({framework,buildCommand,outputDir,files:files.map(x=>x.path)});
   }
@@ -29,13 +29,13 @@ export async function onRequestPost({request,env}){
   }
   if(action==="deploy"){
     const repo=await getRepo(repos,b.repoId,user.id);if(!repo)return json({error:"Repository not found."},404);
-    const config=b.config||{},projectName=safeName(config.projectName||repo.name),branch=String(config.branch||"main"),output=String(config.outputDir||"").replace(/^\/+|\/+$/g,"");
+    const config=b.config||{},projectName=safeName(config.projectName||repo.name),branch=String(config.branch||"main"),output=String(config.outputDir||"").replace(/^\/+|\/+$/g,""),root=String(config.rootDir||"").replace(/^\/+|\/+$/g,"");
     const rows=await repos.prepare("SELECT path,content FROM repo_files WHERE repo_id=?").bind(repo.id).all();const all=Object.fromEntries((rows.results||[]).map(x=>[x.path,String(x.content||"")]));
-    let files=Object.entries(all);
+    let files=Object.entries(all).filter(([p])=>!root||p===root||p.startsWith(root+"/")).map(([p,v])=>[root&&p.startsWith(root+"/")?p.slice(root.length+1):p,v]);
     if(output)files=files.filter(([p])=>p===output||p.startsWith(output+"/")).map(([p,c])=>[p.slice(output.length).replace(/^\//,"")||"index.html",c]);
     else files=files.filter(([p])=>!p.startsWith(".git/")&&!p.startsWith(".gut/")&&!p.startsWith(".gh/")&&!p.startsWith("node_modules/"));
     if(!files.length)return json({error:"There are no deployable files. For React/Vite, build the project first so the configured output directory exists."},400);
-    if(files.length>20000)return json({error:"Pages deployment is limited to 20,000 files."},400);
+    if(files.length>20000)return json({error:"Pages deployment is limited to 20,000 files."},400);\n    for(const [path,content] of files){if(new TextEncoder().encode(content).byteLength>25*1024*1024)return json({error:"File exceeds the 25 MiB Pages asset limit: "+path},400);}
     let project;
     try{project=await cf(env,"/pages/projects/"+encodeURIComponent(projectName));}
     catch{project=await cf(env,"/pages/projects",{method:"POST",body:JSON.stringify({name:projectName,production_branch:branch,build_config:{build_command:String(config.buildCommand||""),destination_dir:output||"."}})});}
