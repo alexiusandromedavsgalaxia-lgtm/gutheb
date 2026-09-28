@@ -37,6 +37,7 @@ async function ensureRepoSchema(db){
 export async function onRequestPost({request,env}){
   const {users,repos,archive,zip}=dbs(env);
   if(!users||!repos)return json({error:"USERS_DB and REPOS_DB must be bound to this Pages project."},503);
+  try{await ensureAuthSchema(users);await ensureRepoSchema(repos)}catch(e){return json({error:"GutHeb database is not ready: "+String(e?.message||e)},503)}
   const b=await read(request),action=String(b.action||"");
   if(action==="register"||action==="login"){
     const email=String(b.email||"").trim().toLowerCase(),password=String(b.password||""),username=String(b.username||email.split("@")[0]||"user").trim();
