@@ -224,7 +224,8 @@ function App(){
         {page==="projects"&&<Projects/>}
         {page==="discussions"&&<Discussions/>}
         {page==="pages"&&<Pages repos={repos} user={user} flash={flash} saveLocalRepo={saveLocalRepo}/>}
-        {page==="codespaces"&&<Codespaces repos={repos.filter(r=>!r.owner||r.owner===user.name)} user={user} saveLocalRepo={saveLocalRepo} flash={flash} go={go}/>}\n        {page.startsWith("codespace/")&&<Codespaces repos={repos.filter(r=>!r.owner||r.owner===user.name)} user={user} saveLocalRepo={saveLocalRepo} flash={flash} go={go} sessionId={decodeURIComponent(page.split("/session/")[1]||"")} sessionPerson={decodeURIComponent(page.split("/")[1]||user.name)}/>}
+        {page==="codespaces"&&<Codespaces repos={repos.filter(r=>!r.owner||r.owner===user.name)} user={user} saveLocalRepo={saveLocalRepo} flash={flash} go={go}/>}
+        {page.startsWith("codespace/")&&<Codespaces repos={repos.filter(r=>!r.owner||r.owner===user.name)} user={user} saveLocalRepo={saveLocalRepo} flash={flash} go={go} sessionId={decodeURIComponent(page.split("/session/")[1]||"")} sessionPerson={decodeURIComponent(page.split("/")[1]||user.name)}/>}
         {page==="marketplace"&&<Marketplace repos={repos} setRepos={setRepos} selectedRepo={selectedRepo} saveLocalRepo={saveLocalRepo} user={user} flash={flash}/>}
         {page==="explore"&&<Explore/>}
         {page==="notifications"&&<Notifications/>}
