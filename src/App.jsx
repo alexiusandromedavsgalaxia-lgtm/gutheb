@@ -352,7 +352,8 @@ function Codespaces({repos,user,saveLocalRepo,flash,go,sessionId:routeSessionId,
   const [sessionId,setSessionId]=useState(()=>routeSessionId||localStorage.getItem("gutheb-codespace-session")||"");
   const [path,setPath]=useState(()=>localStorage.getItem("gutheb-codespace-file")||"");
   const [draft,setDraft]=useState(""); const [terminal,setTerminal]=useState(""); const [cmd,setCmd]=useState(""); const [agent,setAgent]=useState(false); const [workspaceFiles,setWorkspaceFiles]=useState({}); const [agentPrompt,setAgentPrompt]=useState(""); const [side,setSide]=useState("explorer");
-  const repo=repos.find(r=>r.name===repoName)||null; const files=workspaceFiles;\n  useEffect(()=>{if(!repoName&&repos.length){setRepoName(repos[0].name);localStorage.setItem("gutheb-codespace-repo",repos[0].name)}else if(repoName&&!repo){const first=repos[0];if(first){setRepoName(first.name);localStorage.setItem("gutheb-codespace-repo",first.name)}}},[repos,repoName]);
+  const repo=repos.find(r=>r.name===repoName)||null; const files=workspaceFiles;
+  useEffect(()=>{if(!repoName&&repos.length){setRepoName(repos[0].name);localStorage.setItem("gutheb-codespace-repo",repos[0].name)}else if(repoName&&!repo){const first=repos[0];if(first){setRepoName(first.name);localStorage.setItem("gutheb-codespace-repo",first.name)}}},[repos,repoName]);
   useEffect(()=>{if(routeSessionId){setSessionId(routeSessionId);setOpen(true);localStorage.setItem("gutheb-codespace-session",routeSessionId)}},[routeSessionId]);
   useEffect(()=>{if(repoName&&repo){setWorkspaceFiles({...repo.files});}},[repoName,repo?.id]);
   useEffect(()=>{if(path&&files[path]!==undefined)setDraft(String(files[path]||""));},[path,workspaceFiles]);
