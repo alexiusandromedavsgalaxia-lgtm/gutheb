@@ -359,8 +359,15 @@ function Codespaces({repos,user,saveLocalRepo,flash,go,sessionId:routeSessionId,
   useEffect(()=>{if(path&&files[path]!==undefined)setDraft(String(files[path]||""));},[path,workspaceFiles]);
   const start=()=>{if(!repo)return flash("Select a repository first");const id=crypto.randomUUID();localStorage.setItem("gutheb-codespace-repo",repo.name);localStorage.setItem("gutheb-codespace-open","1");localStorage.setItem("gutheb-codespace-session",id);const first=Object.keys(repo.files||{})[0]||"";setPath(first);localStorage.setItem("gutheb-codespace-file",first);setSessionId(id);setOpen(true);go&&go("codespace/"+encodeURIComponent(user.name)+"/session/"+encodeURIComponent(id));};
   const back=()=>{setOpen(false);localStorage.setItem("gutheb-codespace-open","0");go&&go("codespaces")};
-  const save=()=>{if(!repo||!path)return;const nextFiles={...workspaceFiles,[path]:draft};setWorkspaceFiles(nextFiles);saveLocalRepo({...repo,files:{...(repo.files||{}),[path]:draft}});flash("Saved");};
-  const run=()=>{
+  const save=async()=>{
+    if(!repo||!path)return;
+    const nextFiles={...workspaceFiles,[path]:draft};
+    const nextRepo={...repo,files:{...(repo.files||{}),[path]:draft}};
+    setWorkspaceFiles(nextFiles);
+    saveLocalRepo(nextRepo);
+    flash("Saved");
+  };
+  const run=async()=>{
     const input=cmd.trim(); if(!input)return;
     const root="/workspace/"+(repo?.name||"repository");
     const cwd=processCwd||root;
@@ -368,73 +375,62 @@ function Codespaces({repos,user,saveLocalRepo,flash,go,sessionId:routeSessionId,
     const rel=(p)=>{const n=normalize(p);return n.startsWith(root+"/")?n.slice(root.length+1):n===root?"":n.replace(/^\//,"")};
     const read=(p)=>{const key=rel(p);return Object.prototype.hasOwnProperty.call(files,key)?String(files[key]??""):null};
     const write=(p,v)=>{const key=rel(p);if(!key)return false;setWorkspaceFiles(x=>({...x,[key]:String(v??"")}));return true};
-    const lines=(v)=>String(v||"").split("\n");
     let out="",code=0,nextCwd=cwd;
     const [name,...args]=input.split(/\s+/);
     if(name==="clear"){setTerminal("");setCmd("");return}
     if(name==="pwd")out=cwd;
     else if(name==="whoami")out="gutheb";
-    else if(name==="uname"){out=args.join(" ")==="-a"?"GutHeb Process gutheb-native 1.0.0 browser-wasm x86_64":"GutHeb Process";}
-    else if(name==="echo"){out=input.slice(5)}
-    else if(name==="env"){out=Object.entries(processEnv).map(([k,v])=>k+"="+v).join("\n")}
+    else if(name==="uname")out=args.join(" ")==="-a"?"GutHeb Process gutheb-native 1.0.0 browser-wasm x86_64":"GutHeb Process";
+    else if(name==="echo")out=input.slice(5);
+    else if(name==="env")out=Object.entries(processEnv).map(([k,v])=>k+"="+v).join("\n");
     else if(name==="export"){
       const m=input.slice(7).match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
-      if(!m){out="export: expected NAME=value";code=2}else{setProcessEnv(x=>({...x,[m[1]]:m[2]}));out=""}
+      if(!m){out="export: expected NAME=value";code=2}else{setProcessEnv(x=>({...x,[m[1]]:m[2]}));}
     } else if(name==="cd"){
       const target=normalize(args[0]||root);
-      if(target!==root&&!target.startsWith(root+"/")){out="cd: outside workspace is not allowed";code=1}
-      else {nextCwd=target;setProcessCwd(target);out=""}
+      if(target!==root&&!target.startsWith(root+"/")){out="cd: outside workspace is not allowed";code=1}else{nextCwd=target;setProcessCwd(target);}
     } else if(name==="ls"){
-      const target=normalize(args.find(x=>!x.startsWith("-"))||cwd), prefix=target===root?"":rel(target)+"/";
-      const entries=new Set();
-      Object.keys(files).forEach(k=>{if(!k.startsWith(prefix))return;const rest=k.slice(prefix.length).split("/");if(rest[0])entries.add(rest[0])});
+      const target=normalize(args.find(x=>!x.startsWith("-"))||cwd),prefix=target===root?"":rel(target)+"/",entries=new Set();
+      Object.keys(files).forEach(k=>{if(k.startsWith(prefix)){const rest=k.slice(prefix.length).split("/");if(rest[0])entries.add(rest[0])}});
       out=[...entries].sort().join("\n")||"(empty)";
-    } else if(name==="cat"){
-      const p=rel(args[0]); const value=read(args[0]);
-      if(value===null){out="cat: "+(args[0]||"")+" : No such file";code=1}else out=value;
-    } else if(name==="head"||name==="tail"){
+    } else if(name==="cat"||name==="head"||name==="tail"){
       const value=read(args[0]);
       if(value===null){out=name+": "+(args[0]||"")+" : No such file";code=1}
-      else {const ls=lines(value),n=Math.max(1,Number(args.find(x=>/^\d+$/.test(x))||10));out=(name==="head"?ls.slice(0,n):ls.slice(-n)).join("\n")}
+      else if(name==="cat")out=value;
+      else {const ls=value.split("\n"),n=Math.max(1,Number(args.find(x=>/^\d+$/.test(x))||10));out=(name==="head"?ls.slice(0,n):ls.slice(-n)).join("\n");}
     } else if(name==="wc"&&args[0]==="-l"){
-      const value=read(args[1]);if(value===null){out="wc: "+(args[1]||"")+" : No such file";code=1}else out=lines(value).length+" "+args[1];
-    } else if(name==="touch"){
-      for(const p of args)write(p,read(p)??""); out="";
-    } else if(name==="mkdir"){
-      out=""; for(const p of args.filter(x=>!x.startsWith("-"))){const key=rel(p);if(key&&!Object.keys(files).some(k=>k===key||k.startsWith(key+"/")))setWorkspaceFiles(x=>({...x,[key+"/.gitkeep"]:""}))}
-    } else if(name==="rm"){
-      const targets=args.filter(x=>!x.startsWith("-")); let removed=0;
-      setWorkspaceFiles(x=>{const n={...x};for(const p of targets){const key=rel(p);for(const k of Object.keys(n)){if(k===key||k.startsWith(key+"/")){delete n[k];removed++}}}return n});
+      const value=read(args[1]);if(value===null){out="wc: "+(args[1]||"")+" : No such file";code=1}else out=value.split("\n").length+" "+args[1];
+    } else if(name==="touch"){for(const p of args)write(p,read(p)??"");}
+    else if(name==="mkdir"){for(const p of args.filter(x=>!x.startsWith("-"))){const key=rel(p);if(key&&!Object.keys(files).some(k=>k===key||k.startsWith(key+"/")))setWorkspaceFiles(x=>({...x,[key+"/.gitkeep"]:""}));}}
+    else if(name==="rm"){
+      const targets=args.filter(x=>!x.startsWith("-"));let removed=0;
+      setWorkspaceFiles(x=>{const n={...x};for(const p of targets){const key=rel(p);for(const k of Object.keys(n)){if(k===key||k.startsWith(key+"/")){delete n[k];removed++;}}}return n});
       if(!removed){out="rm: nothing matched";code=1}
     } else if(name==="grep"){
-      const pattern=args.find(x=>!x.startsWith("-")), target=args[args.length-1],value=read(target);
-      if(!pattern||!value){out="grep: missing pattern or file";code=2}else out=lines(value).filter(l=>l.toLowerCase().includes(pattern.toLowerCase())).join("\n");
-    } else if(name==="find"){
-      out=Object.keys(files).map(k=>root+"/"+k).join("\n")||"(empty)";
-    } else if(name==="git"){
+      const pattern=args.find(x=>!x.startsWith("-")),target=args[args.length-1],value=read(target);
+      if(!pattern||!value){out="grep: missing pattern or file";code=2}else out=value.split("\n").filter(l=>l.toLowerCase().includes(pattern.toLowerCase())).join("\n");
+    } else if(name==="find")out=Object.keys(files).map(k=>root+"/"+k).join("\n")||"(empty)";
+    else if(name==="git"){
       if(args[0]==="status")out="On branch "+(repo?.currentBranch||"main")+"\nChanges are tracked by GutHeb\n\nWorking tree ready.";
       else if(args[0]==="branch")out="* "+(repo?.currentBranch||"main");
       else if(args[0]==="log")out="GutHeb repository history is stored by the GutHeb backend.";
       else out="git: GutHeb provides repository operations without invoking a host Git binary.";
-    } else if(name==="node"){
-      const expr=input.replace(/^node\s+(-e|--eval)\s*/,"").trim();
-      const m=expr.match(/console\.(log|error)\((.*)\)/s);
-      if(m){let v=m[2].trim().replace(/^["'\`]|["'\`]$/g,"");out=v; if(m[1]==="error")code=1}
-      else out="GutHeb Node-compatible process: only safe inline console output is supported.";
-    } else if(name==="npm"){
-      if(args[0]==="-v"||args[0]==="--version")out="gutheb-npm 1.0.0";
-      else if(args[0]==="install"||args[0]==="ci")out="Dependencies are represented by package.json in the virtual workspace. No host package manager is required.";
-      else if(args[0]==="run"){
-        const script=args[1]||"";
-        const pkg=read("package.json");
-        let scripts={};try{scripts=JSON.parse(pkg||"{}").scripts||{}}catch{}
-        if(!scripts[script]){out="npm ERR! Missing script: \u001b[31m"+script+"\u001b[0m";code=1}
-        else if(/^(echo|printf)\b/i.test(scripts[script]))out=scripts[script].replace(/^(echo|printf)\s+/i,"").replace(/^["']|["']$/g,"");
-        else out="GutHeb Process cannot execute host binaries from package scripts. Script detected: "+scripts[script];
-      } else out="gutheb-npm: supported commands are -v, install, ci and run.";
     } else if(input.toLowerCase()==="gut pash -g delete"){
-      setWorkspaceFiles({});setPath("");setDraft("");setProcessCwd(root);localStorage.removeItem("gutheb-codespace-file");out="Codespace workspace cleared. Repository unchanged.";flash("Codespace vaciado. El repositorio no ha cambiado.");
-    } else {out="Command not found in GutHeb Process: "+name+"\nThis Codespace uses its own browser-native process layer. No Linux runner is required.";code=127}
+      try{
+        const res=await fetch("/api/gut",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({command:input,codespace_id:sessionId,session_id:sessionId,repo:repo?.name||""})});
+        const data=await res.json();
+        if(!res.ok)throw new Error(data.error||"GUT request failed");
+        setWorkspaceFiles({});setPath("");setDraft("");setProcessCwd(root);localStorage.removeItem("gutheb-codespace-file");out="GUT/1: Codespace workspace cleared.";
+        flash("Codespace vaciado. El repositorio no ha cambiado.");
+      }catch(e){out="GUT/1 error: "+e.message;code=1}
+    } else {
+      try{
+        const res=await fetch("/api/gut",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({command:input,codespace_id:sessionId,session_id:sessionId,repo:repo?.name||""})});
+        const data=await res.json();
+        if(res.ok&&data?.ok)out=JSON.stringify(data,null,2);
+        else {out=data?.error||"Command not found in GUT/1";code=res.status||127;}
+      }catch(e){out="GUT/1 error: "+e.message;code=1}
+    }
     setTerminal(x=>x+"$ "+input+"\n"+out+(code?"\n[exit "+code+"]":"")+"\n");
     setCmd("");
   };
