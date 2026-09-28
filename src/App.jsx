@@ -365,12 +365,12 @@ function Codespaces({repos,user,saveLocalRepo,flash,go,sessionId:routeSessionId,
     const root="/workspace/"+(repo?.name||"repository");
     const cwd=processCwd||root;
     const normalize=(p)=>{const raw=String(p||"");if(!raw)return cwd;const base=raw.startsWith("/")?raw:cwd+"/"+raw;const parts=[];for(const part of base.split("/")){if(!part||part===".")continue;if(part==="..")parts.pop();else parts.push(part)}return "/"+parts.join("/")};
-    const rel=(p)=>{const n=normalize(p);return n.startsWith(root+"/")?n.slice(root.length+1):n===root?"":n.replace(/^\\//,"")};
+    const rel=(p)=>{const n=normalize(p);return n.startsWith(root+"/")?n.slice(root.length+1):n===root?"":n.replace(/^\//,"")};
     const read=(p)=>{const key=rel(p);return Object.prototype.hasOwnProperty.call(files,key)?String(files[key]??""):null};
     const write=(p,v)=>{const key=rel(p);if(!key)return false;setWorkspaceFiles(x=>({...x,[key]:String(v??"")}));return true};
     const lines=(v)=>String(v||"").split("\n");
     let out="",code=0,nextCwd=cwd;
-    const [name,...args]=input.split(/\\s+/);
+    const [name,...args]=input.split(/\s+/);
     if(name==="clear"){setTerminal("");setCmd("");return}
     if(name==="pwd")out=cwd;
     else if(name==="whoami")out="gutheb";
@@ -395,7 +395,7 @@ function Codespaces({repos,user,saveLocalRepo,flash,go,sessionId:routeSessionId,
     } else if(name==="head"||name==="tail"){
       const value=read(args[0]);
       if(value===null){out=name+": "+(args[0]||"")+" : No such file";code=1}
-      else {const ls=lines(value),n=Math.max(1,Number(args.find(x=>/^\\d+$/.test(x))||10));out=(name==="head"?ls.slice(0,n):ls.slice(-n)).join("\n")}
+      else {const ls=lines(value),n=Math.max(1,Number(args.find(x=>/^\d+$/.test(x))||10));out=(name==="head"?ls.slice(0,n):ls.slice(-n)).join("\n")}
     } else if(name==="wc"&&args[0]==="-l"){
       const value=read(args[1]);if(value===null){out="wc: "+(args[1]||"")+" : No such file";code=1}else out=lines(value).length+" "+args[1];
     } else if(name==="touch"){
@@ -412,13 +412,13 @@ function Codespaces({repos,user,saveLocalRepo,flash,go,sessionId:routeSessionId,
     } else if(name==="find"){
       out=Object.keys(files).map(k=>root+"/"+k).join("\n")||"(empty)";
     } else if(name==="git"){
-      if(args[0]==="status")out="On branch "+(repo?.currentBranch||"main")+"\\nChanges are tracked by GutHeb\\n\\nWorking tree ready.";
+      if(args[0]==="status")out="On branch "+(repo?.currentBranch||"main")+"\nChanges are tracked by GutHeb\n\nWorking tree ready.";
       else if(args[0]==="branch")out="* "+(repo?.currentBranch||"main");
       else if(args[0]==="log")out="GutHeb repository history is stored by the GutHeb backend.";
       else out="git: GutHeb provides repository operations without invoking a host Git binary.";
     } else if(name==="node"){
-      const expr=input.replace(/^node\\s+(-e|--eval)\\s*/,"").trim();
-      const m=expr.match(/console\\.(log|error)\\((.*)\\)/s);
+      const expr=input.replace(/^node\s+(-e|--eval)\s*/,"").trim();
+      const m=expr.match(/console\.(log|error)\((.*)\)/s);
       if(m){let v=m[2].trim().replace(/^["'\`]|["'\`]$/g,"");out=v; if(m[1]==="error")code=1}
       else out="GutHeb Node-compatible process: only safe inline console output is supported.";
     } else if(name==="npm"){
@@ -428,14 +428,14 @@ function Codespaces({repos,user,saveLocalRepo,flash,go,sessionId:routeSessionId,
         const script=args[1]||"";
         const pkg=read("package.json");
         let scripts={};try{scripts=JSON.parse(pkg||"{}").scripts||{}}catch{}
-        if(!scripts[script]){out="npm ERR! Missing script: \\u001b[31m"+script+"\\u001b[0m";code=1}
-        else if(/^(echo|printf)\\b/i.test(scripts[script]))out=scripts[script].replace(/^(echo|printf)\\s+/i,"").replace(/^["']|["']$/g,"");
+        if(!scripts[script]){out="npm ERR! Missing script: \u001b[31m"+script+"\u001b[0m";code=1}
+        else if(/^(echo|printf)\b/i.test(scripts[script]))out=scripts[script].replace(/^(echo|printf)\s+/i,"").replace(/^["']|["']$/g,"");
         else out="GutHeb Process cannot execute host binaries from package scripts. Script detected: "+scripts[script];
       } else out="gutheb-npm: supported commands are -v, install, ci and run.";
     } else if(input.toLowerCase()==="gut pash -g delete"){
       setWorkspaceFiles({});setPath("");setDraft("");setProcessCwd(root);localStorage.removeItem("gutheb-codespace-file");out="Codespace workspace cleared. Repository unchanged.";flash("Codespace vaciado. El repositorio no ha cambiado.");
-    } else {out="Command not found in GutHeb Process: "+name+"\\nThis Codespace uses its own browser-native process layer. No Linux runner is required.";code=127}
-    setTerminal(x=>x+"$ "+input+"\\n"+out+(code?"\\n[exit "+code+"]":"")+"\\n");
+    } else {out="Command not found in GutHeb Process: "+name+"\nThis Codespace uses its own browser-native process layer. No Linux runner is required.";code=127}
+    setTerminal(x=>x+"$ "+input+"\n"+out+(code?"\n[exit "+code+"]":"")+"\n");
     setCmd("");
   };
   const [agentBusy,setAgentBusy]=useState(false); const [agentMessages,setAgentMessages]=useState([]);
