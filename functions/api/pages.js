@@ -52,6 +52,11 @@ export async function onRequestPost({request,env}){
   if(action==="deploy"){
     const repo=await getRepo(repos,b.repoId,user.id);if(!repo)return json({error:"Repository not found."},404);
     const config=b.config||{},projectName=safeName(config.projectName||repo.name),branch=String(config.branch||"main"),output=String(config.outputDir||"").replace(/^\/+|\/+$/g,""),root=String(config.rootDir||"").replace(/^\/+|\/+$/g,"");
+    if(pages){
+      const ownedSite=await pages.prepare("SELECT owner_id,repo_id FROM pages_sites WHERE project_name=?").bind(projectName).first();
+      if(ownedSite&&ownedSite.owner_id!==user.id)return json({error:"That Pages project belongs to another account."},403);
+      if(ownedSite&&ownedSite.repo_id!==repo.id)return json({error:"That Pages project is already linked to another repository."},409);
+    }
     const rows=await repos.prepare("SELECT path,content FROM repo_files WHERE repo_id=?").bind(repo.id).all();const all=Object.fromEntries((rows.results||[]).map(x=>[x.path,String(x.content||"")]));
     let files=Object.entries(all).filter(([p])=>!root||p===root||p.startsWith(root+"/")).map(([p,v])=>[root&&p.startsWith(root+"/")?p.slice(root.length+1):p,v]);
     if(output)files=files.filter(([p])=>p===output||p.startsWith(output+"/")).map(([p,c])=>[p.slice(output.length).replace(/^\//,"")||"index.html",c]);
@@ -82,7 +87,11 @@ export async function onRequestPost({request,env}){
     return json({ok:true,project:projectName,deployment:dd.result,url});
   }
   if(action==="deployments"){
-    const projectName=safeName(b.projectName);const d=await cf(env,"/pages/projects/"+encodeURIComponent(projectName)+"/deployments");return json({deployments:d.result||[]});
+    const projectName=safeName(b.projectName);if(!projectName)return json({error:"Project name required."},400);
+    if(!pages)return json({error:"Pages database is not bound."},503);
+    const ownedSite=await pages.prepare("SELECT owner_id FROM pages_sites WHERE project_name=?").bind(projectName).first();
+    if(!ownedSite||ownedSite.owner_id!==user.id)return json({error:"Pages project not found for this account."},404);
+    const d=await cf(env,"/pages/projects/"+encodeURIComponent(projectName)+"/deployments");return json({deployments:d.result||[]});
   }
   return json({error:"Unknown Pages action."},400);
 }
