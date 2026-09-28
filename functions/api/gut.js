@@ -34,11 +34,11 @@ function archivePayload(snapshot,name,root=""){
 }
 function parseCommand(command){
   const s=String(command||"").trim();
-  const m=s.match(/^gut\\s+pash\\s+-g\\s+clone\\s+archive\\s+(.+)$/i);if(m)return {op:"clone_archive",archive:m[1].trim()};
-  const c=s.match(/^gut\\s+pash\\s+-g\\s+create\\s+archive\\s+([^\\s]+)\\s+-&\\s+pash\\s+directory\\s+(.+)$/i);if(c)return {op:"create_archive",archive:c[1],directory:c[2]};
-  const delCodespace=s.match(/^gut\\s+pash\\s+-g\\s+delete(?:\\s+(.+))?$/i);if(delCodespace)return {op:"pash_delete",target:(delCodespace[1]||"").trim()};
-  const cl=s.match(/^gut\\s+clone\\s+-([^\\s]+)$/i);if(cl)return {op:"clone",repo:cl[1]};
-  const del=s.match(/^gut\\s+delete\\s+-(repo|archivo|raw|codespace|action|carpeta)\\s+(.+)$/i);if(del)return {op:"delete",kind:del[1].toLowerCase(),target:del[2].trim()};
+  const m=s.match(/^gut\s+pash\s+-g\s+clone\s+archive\s+(.+)$/i);if(m)return {op:"clone_archive",archive:m[1].trim()};
+  const c=s.match(/^gut\s+pash\s+-g\s+create\s+archive\s+([^\s]+)\s+-&\s+pash\s+directory\s+(.+)$/i);if(c)return {op:"create_archive",archive:c[1],directory:c[2]};
+  const delCodespace=s.match(/^gut\s+pash\s+-g\s+delete(?:\s+(.+))?$/i);if(delCodespace)return {op:"pash_delete",target:(delCodespace[1]||"").trim()};
+  const cl=s.match(/^gut\s+clone\s+-([^\s]+)$/i);if(cl)return {op:"clone",repo:cl[1]};
+  const del=s.match(/^gut\s+delete\s+-(repo|archivo|raw|codespace|action|carpeta)\s+(.+)$/i);if(del)return {op:"delete",kind:del[1].toLowerCase(),target:del[2].trim()};
   return null;
 }
 async function execute({request,env,body}){
