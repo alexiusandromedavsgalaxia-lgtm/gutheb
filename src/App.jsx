@@ -351,7 +351,7 @@ function Codespaces({repos,user,saveLocalRepo,flash,go,sessionId:routeSessionId,
   const [open,setOpen]=useState(!!routeSessionId||localStorage.getItem("gutheb-codespace-open")==="1");
   const [sessionId,setSessionId]=useState(()=>routeSessionId||localStorage.getItem("gutheb-codespace-session")||"");
   const [path,setPath]=useState(()=>localStorage.getItem("gutheb-codespace-file")||"");
-  const [draft,setDraft]=useState(""); const [terminal,setTerminal]=useState(""); const [cmd,setCmd]=useState(""); const [agent,setAgent]=useState(false); const [workspaceFiles,setWorkspaceFiles]=useState({}); const [agentPrompt,setAgentPrompt]=useState(""); const [side,setSide]=useState("explorer");
+  const [draft,setDraft]=useState(""); const [terminal,setTerminal]=useState(""); const [cmd,setCmd]=useState(""); const [agent,setAgent]=useState(false); const [workspaceFiles,setWorkspaceFiles]=useState({}); const [agentPrompt,setAgentPrompt]=useState(""); const [side,setSide]=useState("explorer"); const [processCwd,setProcessCwd]=useState(""); const [processEnv,setProcessEnv]=useState({NODE_ENV:"development",GUTHEB_CODESPACE:"1"}); const [processPid,setProcessPid]=useState(()=>Math.floor(1000+Math.random()*8000));
   const repo=repos.find(r=>r.name===repoName)||null; const files=workspaceFiles;
   useEffect(()=>{if(!repoName&&repos.length){setRepoName(repos[0].name);localStorage.setItem("gutheb-codespace-repo",repos[0].name)}else if(repoName&&!repo){const first=repos[0];if(first){setRepoName(first.name);localStorage.setItem("gutheb-codespace-repo",first.name)}}},[repos,repoName]);
   useEffect(()=>{if(routeSessionId){setSessionId(routeSessionId);setOpen(true);localStorage.setItem("gutheb-codespace-session",routeSessionId)}},[routeSessionId]);
@@ -360,7 +360,84 @@ function Codespaces({repos,user,saveLocalRepo,flash,go,sessionId:routeSessionId,
   const start=()=>{if(!repo)return flash("Select a repository first");const id=crypto.randomUUID();localStorage.setItem("gutheb-codespace-repo",repo.name);localStorage.setItem("gutheb-codespace-open","1");localStorage.setItem("gutheb-codespace-session",id);const first=Object.keys(repo.files||{})[0]||"";setPath(first);localStorage.setItem("gutheb-codespace-file",first);setSessionId(id);setOpen(true);go&&go("codespace/"+encodeURIComponent(user.name)+"/session/"+encodeURIComponent(id));};
   const back=()=>{setOpen(false);localStorage.setItem("gutheb-codespace-open","0");go&&go("codespaces")};
   const save=()=>{if(!repo||!path)return;const nextFiles={...workspaceFiles,[path]:draft};setWorkspaceFiles(nextFiles);saveLocalRepo({...repo,files:{...(repo.files||{}),[path]:draft}});flash("Saved");};
-  const run=()=>{const c=cmd.trim();if(!c)return;let out="";if(c==="pwd")out="/workspace/"+(repo?.name||"repository");else if(c==="ls"||c==="ls -la")out=Object.keys(files).join("\\n")||"(empty)";else if(c==="clear"){setTerminal("");setCmd("");return}else if(c.toLowerCase()==="gut pash -g delete"){setWorkspaceFiles({});setPath("");setDraft("");localStorage.removeItem("gutheb-codespace-file");out="Codespace workspace cleared. Repository unchanged.";flash("Codespace vaciado. El repositorio no ha cambiado.");}else if(c==="git status")out="On branch main\\nWorking tree ready.";else if(c.startsWith("cat ")){const p=c.slice(4).trim();out=files[p]!==undefined?String(files[p]):"cat: "+p+": No such file"}else out="Command is not connected to a Linux runner yet.";setTerminal(x=>x+"$ "+c+"\\n"+out+"\\n");setCmd("")};
+  const run=()=>{
+    const input=cmd.trim(); if(!input)return;
+    const root="/workspace/"+(repo?.name||"repository");
+    const cwd=processCwd||root;
+    const normalize=(p)=>{const raw=String(p||"");if(!raw)return cwd;const base=raw.startsWith("/")?raw:cwd+"/"+raw;const parts=[];for(const part of base.split("/")){if(!part||part===".")continue;if(part==="..")parts.pop();else parts.push(part)}return "/"+parts.join("/")};
+    const rel=(p)=>{const n=normalize(p);return n.startsWith(root+"/")?n.slice(root.length+1):n===root?"":n.replace(/^\\//,"")};
+    const read=(p)=>{const key=rel(p);return Object.prototype.hasOwnProperty.call(files,key)?String(files[key]??""):null};
+    const write=(p,v)=>{const key=rel(p);if(!key)return false;setWorkspaceFiles(x=>({...x,[key]:String(v??"")}));return true};
+    const lines=(v)=>String(v||"").split("\n");
+    let out="",code=0,nextCwd=cwd;
+    const [name,...args]=input.split(/\\s+/);
+    if(name==="clear"){setTerminal("");setCmd("");return}
+    if(name==="pwd")out=cwd;
+    else if(name==="whoami")out="gutheb";
+    else if(name==="uname"){out=args.join(" ")==="-a"?"GutHeb Process gutheb-native 1.0.0 browser-wasm x86_64":"GutHeb Process";}
+    else if(name==="echo"){out=input.slice(5)}
+    else if(name==="env"){out=Object.entries(processEnv).map(([k,v])=>k+"="+v).join("\n")}
+    else if(name==="export"){
+      const m=input.slice(7).match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+      if(!m){out="export: expected NAME=value";code=2}else{setProcessEnv(x=>({...x,[m[1]]:m[2]}));out=""}
+    } else if(name==="cd"){
+      const target=normalize(args[0]||root);
+      if(target!==root&&!target.startsWith(root+"/")){out="cd: outside workspace is not allowed";code=1}
+      else {nextCwd=target;setProcessCwd(target);out=""}
+    } else if(name==="ls"){
+      const target=normalize(args.find(x=>!x.startsWith("-"))||cwd), prefix=target===root?"":rel(target)+"/";
+      const entries=new Set();
+      Object.keys(files).forEach(k=>{if(!k.startsWith(prefix))return;const rest=k.slice(prefix.length).split("/");if(rest[0])entries.add(rest[0])});
+      out=[...entries].sort().join("\n")||"(empty)";
+    } else if(name==="cat"){
+      const p=rel(args[0]); const value=read(args[0]);
+      if(value===null){out="cat: "+(args[0]||"")+" : No such file";code=1}else out=value;
+    } else if(name==="head"||name==="tail"){
+      const value=read(args[0]);
+      if(value===null){out=name+": "+(args[0]||"")+" : No such file";code=1}
+      else {const ls=lines(value),n=Math.max(1,Number(args.find(x=>/^\\d+$/.test(x))||10));out=(name==="head"?ls.slice(0,n):ls.slice(-n)).join("\n")}
+    } else if(name==="wc"&&args[0]==="-l"){
+      const value=read(args[1]);if(value===null){out="wc: "+(args[1]||"")+" : No such file";code=1}else out=lines(value).length+" "+args[1];
+    } else if(name==="touch"){
+      for(const p of args)write(p,read(p)??""); out="";
+    } else if(name==="mkdir"){
+      out=""; for(const p of args.filter(x=>!x.startsWith("-"))){const key=rel(p);if(key&&!Object.keys(files).some(k=>k===key||k.startsWith(key+"/")))setWorkspaceFiles(x=>({...x,[key+"/.gitkeep"]:""}))}
+    } else if(name==="rm"){
+      const targets=args.filter(x=>!x.startsWith("-")); let removed=0;
+      setWorkspaceFiles(x=>{const n={...x};for(const p of targets){const key=rel(p);for(const k of Object.keys(n)){if(k===key||k.startsWith(key+"/")){delete n[k];removed++}}}return n});
+      if(!removed){out="rm: nothing matched";code=1}
+    } else if(name==="grep"){
+      const pattern=args.find(x=>!x.startsWith("-")), target=args[args.length-1],value=read(target);
+      if(!pattern||!value){out="grep: missing pattern or file";code=2}else out=lines(value).filter(l=>l.toLowerCase().includes(pattern.toLowerCase())).join("\n");
+    } else if(name==="find"){
+      out=Object.keys(files).map(k=>root+"/"+k).join("\n")||"(empty)";
+    } else if(name==="git"){
+      if(args[0]==="status")out="On branch "+(repo?.currentBranch||"main")+"\\nChanges are tracked by GutHeb\\n\\nWorking tree ready.";
+      else if(args[0]==="branch")out="* "+(repo?.currentBranch||"main");
+      else if(args[0]==="log")out="GutHeb repository history is stored by the GutHeb backend.";
+      else out="git: GutHeb provides repository operations without invoking a host Git binary.";
+    } else if(name==="node"){
+      const expr=input.replace(/^node\\s+(-e|--eval)\\s*/,"").trim();
+      const m=expr.match(/console\\.(log|error)\\((.*)\\)/s);
+      if(m){let v=m[2].trim().replace(/^["'\`]|["'\`]$/g,"");out=v; if(m[1]==="error")code=1}
+      else out="GutHeb Node-compatible process: only safe inline console output is supported.";
+    } else if(name==="npm"){
+      if(args[0]==="-v"||args[0]==="--version")out="gutheb-npm 1.0.0";
+      else if(args[0]==="install"||args[0]==="ci")out="Dependencies are represented by package.json in the virtual workspace. No host package manager is required.";
+      else if(args[0]==="run"){
+        const script=args[1]||"";
+        const pkg=read("package.json");
+        let scripts={};try{scripts=JSON.parse(pkg||"{}").scripts||{}}catch{}
+        if(!scripts[script]){out="npm ERR! Missing script: \\u001b[31m"+script+"\\u001b[0m";code=1}
+        else if(/^(echo|printf)\\b/i.test(scripts[script]))out=scripts[script].replace(/^(echo|printf)\\s+/i,"").replace(/^["']|["']$/g,"");
+        else out="GutHeb Process cannot execute host binaries from package scripts. Script detected: "+scripts[script];
+      } else out="gutheb-npm: supported commands are -v, install, ci and run.";
+    } else if(input.toLowerCase()==="gut pash -g delete"){
+      setWorkspaceFiles({});setPath("");setDraft("");setProcessCwd(root);localStorage.removeItem("gutheb-codespace-file");out="Codespace workspace cleared. Repository unchanged.";flash("Codespace vaciado. El repositorio no ha cambiado.");
+    } else {out="Command not found in GutHeb Process: "+name+"\\nThis Codespace uses its own browser-native process layer. No Linux runner is required.";code=127}
+    setTerminal(x=>x+"$ "+input+"\\n"+out+(code?"\\n[exit "+code+"]":"")+"\\n");
+    setCmd("");
+  };
   const [agentBusy,setAgentBusy]=useState(false); const [agentMessages,setAgentMessages]=useState([]);
   const sendAgent=async()=>{
     const prompt=agentPrompt.trim();
@@ -404,9 +481,9 @@ function Codespaces({repos,user,saveLocalRepo,flash,go,sessionId:routeSessionId,
   return <div className="gutheb-code-fullscreen"><header className="codeTop"><div className="codeBrand">◈ GutHeb</div><div className="codeRepo">{repo?.name||repoName} <span>•</span> {sessionId.slice(0,8)}</div><div className="codeTopActions"><button onClick={save}>Save</button><button className={agent?"active":""} onClick={()=>setAgent(!agent)}>✦ Agent</button><button onClick={back}>Exit</button></div></header>
     <div className="codeBody"><aside className="codeActivity"><button className={side==="explorer"?"active":""} onClick={()=>setSide("explorer")}>▱<small>EXPLORER</small></button><button className={side==="search"?"active":""} onClick={()=>setSide("search")}>⌕<small>SEARCH</small></button><button className={side==="source"?"active":""} onClick={()=>setSide("source")}>⑂<small>SOURCE</small></button></aside>
       <aside className="codeExplorer">{side==="explorer"?<><div className="codePaneTitle">EXPLORER <span>{repo?.name}</span></div>{Object.keys(files).map(p=><button className={path===p?"active":""} key={p} onClick={()=>{setPath(p);localStorage.setItem("gutheb-codespace-file",p)}}>▱ {p}</button>)}{!Object.keys(files).length&&<div className="codeEmpty">No files</div>}</>:<div className="codeEmpty">{side==="search"?"Search across files":"Source control"}</div>}</aside>
-      <main className="codeMain"><div className="codeTabs">{path&&<button className="codeTab active">{path} <span>●</span></button>}<button className="codeTabAdd">+</button></div><div className="codeEditorArea">{path?<textarea className="codeEditorFull" value={draft} onChange={e=>setDraft(e.target.value)} spellCheck={false}/>:<div className="codeWelcome"><div className="codeLogo">◈</div><h1>GutHeb Codespaces</h1><p>Open a file from Explorer to start coding.</p></div>}</div><div className="codeTerminal"><div className="codeTerminalHead"><span>TERMINAL</span><button onClick={()=>setTerminal("")}>Clear</button></div><pre>{terminal||"GutHeb terminal ready."}</pre><form onSubmit={e=>{e.preventDefault();run()}}><span>›</span><input value={cmd} onChange={e=>setCmd(e.target.value)} placeholder="Type a command..."/></form></div></main>
+      <main className="codeMain"><div className="codeTabs">{path&&<button className="codeTab active">{path} <span>●</span></button>}<button className="codeTabAdd">+</button></div><div className="codeEditorArea">{path?<textarea className="codeEditorFull" value={draft} onChange={e=>setDraft(e.target.value)} spellCheck={false}/>:<div className="codeWelcome"><div className="codeLogo">◈</div><h1>GutHeb Codespaces</h1><p>Open a file from Explorer to start coding.</p></div>}</div><div className="codeTerminal"><div className="codeTerminalHead"><span>TERMINAL · GUTHEB PROCESS</span><button onClick={()=>setTerminal("")}>Clear</button></div><pre>{terminal||"GutHeb terminal ready."}</pre><form onSubmit={e=>{e.preventDefault();run()}}><span>›</span><input value={cmd} onChange={e=>setCmd(e.target.value)} placeholder="GutHeb Process command..."/></form></div></main>
       {agent&&<aside className="codeAgent"><div className="codeAgentHead">✦ Agent <button onClick={()=>setAgent(false)}>×</button></div><div className="codeAgentBody"><div className="agentIntro"><b>GutHeb Agent</b><span>Powered by GutHeb AI · Pollinations</span></div><div className="agentChat">{agentMessages.map((m,i)=><div key={i} className={"agentMsg "+m.role}><b>{m.role==="user"?"You":"Agent"}</b><span>{m.text}</span></div>)}{!agentMessages.length&&<div className="agentHint">Ask Agent to explain, edit, debug or plan changes in this Codespace.</div>}</div><form onSubmit={e=>{e.preventDefault();sendAgent()}}><textarea value={agentPrompt} onChange={e=>setAgentPrompt(e.target.value)} placeholder="Ask Agent..." disabled={agentBusy}/><button className="primary" disabled={agentBusy}>{agentBusy?"Thinking…":"Send"}</button></form></div></aside>}
-    </div><footer className="codeStatus"><span>main</span><span>GutHeb</span><span>{path||"No file"}</span><span className="codeStatusRight">Ln 1, Col 1 • UTF-8 • Spaces: 2</span></footer>
+    </div><footer className="codeStatus"><span>{repo?.currentBranch||"main"}</span><span>GutHeb Process · PID {processPid}</span><span>{path||"No file"}</span><span className="codeStatusRight">Ln 1, Col 1 • UTF-8 • Spaces: 2</span></footer>
   </div>
 }
 
