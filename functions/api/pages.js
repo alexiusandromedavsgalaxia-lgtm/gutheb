@@ -30,7 +30,8 @@ async function getRepo(repos,id,userId){return await repos.prepare("SELECT id,na
 export async function onRequestPost({request,env}){
   const {repos,pages}=dbs(env);if(!repos)return json({error:"REPOS_DB is not bound to this Pages project."},503);
   const user=await userFrom(request,env);if(!user)return json({error:"Not authenticated."},401);
-  const b=await request.json().catch(()=>({})),action=String(b.action||"");\n  if(pages)await ensurePagesSchema(pages);
+  const b=await request.json().catch(()=>({})),action=String(b.action||"");
+  if(pages)await ensurePagesSchema(pages);
   if(action==="detect"){
     const repo=await getRepo(repos,b.repoId,user.id);if(!repo)return json({error:"Repository not found."},404);
     const rows=await repos.prepare("SELECT path,content FROM repo_files WHERE repo_id=?").bind(repo.id).all();const files=rows.results||[];
