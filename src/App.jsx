@@ -412,6 +412,7 @@ function Codespaces({repos,user,saveLocalRepo,flash,go,sessionId:routeSessionId,
 function Pages({repos,user,flash,saveLocalRepo}){
   const [repoId,setRepoId]=useState(()=>repos.find(r=>!r.owner||r.owner===user.name)?.id||"");
   const repo=repos.find(r=>r.id===repoId)||null;
+  useEffect(()=>{if(!repoId&&repos.length){const first=repos.find(r=>!r.owner||r.owner===user.name)||repos[0];if(first)setRepoId(first.id)}else if(repoId&&!repo){const first=repos.find(r=>!r.owner||r.owner===user.name)||repos[0];if(first)setRepoId(first.id)}},[repos,repoId,user?.name]);
   const [framework,setFramework]=useState("Static HTML"),[buildCommand,setBuildCommand]=useState(""),[outputDir,setOutputDir]=useState(""),[rootDir,setRootDir]=useState(""),[branch,setBranch]=useState("main"),[projectName,setProjectName]=useState(""),[preview,setPreview]=useState(""),[deploying,setDeploying]=useState(false),[error,setError]=useState(""),[deployments,setDeployments]=useState([]);
   const presets={
     "React / Vite":["npm run build","dist"],"Static HTML":["",""],"Node / custom":["npm run build","dist"],"Next.js static":["npx next build","out"],"Astro":["npm run build","dist"],"Custom":["",""]
