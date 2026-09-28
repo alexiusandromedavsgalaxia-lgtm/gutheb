@@ -19,6 +19,21 @@ async function userFrom(request,env){
   const tokenHash=await sha(m[1]);return await users.prepare("SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(tokenHash,new Date().toISOString()).first();
 }
 async function read(request){try{return await request.json()}catch{return {}}}
+async function ensureAuthSchema(db){
+  await db.batch([
+    db.prepare("CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, created_at TEXT NOT NULL)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS profiles (user_id TEXT PRIMARY KEY, username TEXT, bio TEXT DEFAULT '', location TEXT DEFAULT '', website TEXT DEFAULT '', avatar TEXT DEFAULT '')"),
+    db.prepare("CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL, expires_at TEXT NOT NULL)")
+  ]);
+}
+async function ensureRepoSchema(db){
+  await db.batch([
+    db.prepare("CREATE TABLE IF NOT EXISTS repos (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, name TEXT NOT NULL, description TEXT DEFAULT '', visibility TEXT DEFAULT 'Public', language TEXT DEFAULT '', license TEXT DEFAULT 'MIT', stars INTEGER DEFAULT 0, forks INTEGER DEFAULT 0, updated_at TEXT NOT NULL)"),
+    db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS repos_owner_name_idx ON repos(owner_id,name)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS repo_files (repo_id TEXT NOT NULL, path TEXT NOT NULL, content TEXT DEFAULT '', PRIMARY KEY(repo_id,path))"),
+    db.prepare("CREATE TABLE IF NOT EXISTS repo_folders (repo_id TEXT NOT NULL, path TEXT NOT NULL, PRIMARY KEY(repo_id,path))")
+  ]);
+}
 export async function onRequestPost({request,env}){
   const {users,repos,archive,zip}=dbs(env);
   if(!users||!repos)return json({error:"USERS_DB and REPOS_DB must be bound to this Pages project."},503);
