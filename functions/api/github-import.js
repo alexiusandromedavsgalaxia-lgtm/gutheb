@@ -4,8 +4,8 @@ async function sha(s){return [...new Uint8Array(await crypto.subtle.digest("SHA-
 async function userFrom(request,env){
   const db=env.USERS_DB||env.users||env.USERS||env.GUTHEB_DB;
   if(!db)return null;
-  const raw=request.headers.get("Cookie")||"",m=raw.match(/(?:^|; )gutheb_session=([^;]+)/);if(!m)return null;
-  return await db.prepare("SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(await sha(m[1]),new Date().toISOString()).first();
+  const raw=request.headers.get("Cookie")||"",m=raw.match(/(?:^|;)\\s*gutheb_session=([^;]+)/);if(!m)return null;
+  return await db.prepare("SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(await sha(decodeURIComponent(m[1])||m[1]),new Date().toISOString()).first();
 }
 function parseUrl(value){
   let raw=String(value||"").trim();
