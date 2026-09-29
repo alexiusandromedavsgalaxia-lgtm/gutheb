@@ -610,7 +610,7 @@ textarea{min-height:110px;resize:vertical}
 .commitMeta{color:#8b949e;display:flex;gap:10px}
 .commitMeta b{color:#58a6ff;font-weight:400}
 .repoFilesList{background:#0d1117}
-.repoFileRow{min-height:46px;display:grid;grid-template-columns:minmax(220px,1fr) minmax(150px,220px) 92px;align-items:center;border-bottom:1px solid #21262d;padding:0 16px;font-size:13px}
+.repoFileRow{min-height:46px;display:grid;grid-template-columns:minmax(220px,1fr) minmax(150px,220px) auto 92px;align-items:center;border-bottom:1px solid #21262d;padding:0 16px;font-size:13px}
 .repoFileRow:last-child{border-bottom:0}
 .repoFileRow button{display:flex;align-items:center;gap:9px;min-width:0;border:0;background:none;color:#e6edf3;text-align:left;padding:0;cursor:pointer}
 .repoFileRow button:hover{color:#58a6ff}
