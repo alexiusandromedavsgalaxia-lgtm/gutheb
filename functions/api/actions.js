@@ -16,11 +16,11 @@ function hashToken(token){
   return crypto.subtle.digest("SHA-256",new TextEncoder().encode(token)).then(b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""));
 }
 async function sessionUser(request,env){
-  const users=env.USERS_DB;
+  const users=env.USERS_DB||env.users||env.USERS||env.GUTHEB_DB;
   if(!users)return null;
-  const raw=request.headers.get("Cookie")||"",m=raw.match(/(?:^|; )gutheb_session=([^;]+)/);
+  const raw=request.headers.get("Cookie")||"",m=raw.match(/(?:^|;)\\s*gutheb_session=([^;]+)/);
   if(!m)return null;
-  const hash=await hashToken(m[1]);
+  let sessionToken="";try{sessionToken=decodeURIComponent(m[1]);}catch{sessionToken=m[1];}const hash=await hashToken(sessionToken);
   return users.prepare("SELECT u.id,u.username FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(hash,new Date().toISOString()).first();
 }
 async function ensureRunSchema(db){
