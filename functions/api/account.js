@@ -3,8 +3,8 @@ const enc=new TextEncoder();
 const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("");
 async function sha(s){return hex(await crypto.subtle.digest("SHA-256",enc.encode(s)))}
 async function passwordHash(password,salt){return sha(salt+":"+password)}
-function cookie(name,value,maxAge){return name+"="+encodeURIComponent(value)+"; Path=/; HttpOnly; Secure; SameSite=None; Max-Age="+maxAge+"; Priority=High"}
-function clearCookie(name){return name+"=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0"}
+function cookie(name,value,maxAge){return name+"="+encodeURIComponent(value)+"; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age="+maxAge+"; Priority=High"}
+function clearCookie(name){return name+"=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0"}
 function dbs(env){
   return {
     users:env.USERS_DB||env.users||env.USERS||env.GUTHEB_DB,
