@@ -2,9 +2,9 @@ const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:
 
 async function sha(s){return [...new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s)))].map(x=>x.toString(16).padStart(2,"0")).join("")}
 async function currentUser(request,env){
-  const users=env.USERS_DB;if(!users)return null;
-  const raw=request.headers.get("Cookie")||"",m=raw.match(/(?:^|; )gutheb_session=([^;]+)/);if(!m)return null;
-  return users.prepare("SELECT u.id,u.username,u.email FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(await sha(m[1]),new Date().toISOString()).first();
+  const users=env.USERS_DB||env.users||env.USERS||env.GUTHEB_DB;if(!users)return null;
+  const raw=request.headers.get("Cookie")||"",m=raw.match(/(?:^|;)\\s*gutheb_session=([^;]+)/);if(!m)return null;
+  return users.prepare("SELECT u.id,u.username,u.email FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(await sha(decodeURIComponent(m[1])||m[1]),new Date().toISOString()).first();
 }
 function db(env){return env.repositories||env.REPOS_DB||env.REPOSITORIES||env.GUTHEB_DB}
 async function ensureRepoSchema(d){
