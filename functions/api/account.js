@@ -3,8 +3,8 @@ const enc=new TextEncoder();
 const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("");
 async function sha(s){return hex(await crypto.subtle.digest("SHA-256",enc.encode(s)))}
 async function passwordHash(password,salt){return sha(salt+":"+password)}
-function cookie(name,value,maxAge){return name+"="+value+"; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age="+maxAge+"; Priority=High"}
-function clearCookie(name){return name+"=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0"}
+function cookie(name,value,maxAge){return name+"="+encodeURIComponent(value)+"; Path=/; HttpOnly; Secure; SameSite=None; Max-Age="+maxAge+"; Priority=High"}
+function clearCookie(name){return name+"=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0"}
 function dbs(env){
   return {
     users:env.USERS_DB||env.users||env.USERS||env.GUTHEB_DB,
@@ -15,8 +15,8 @@ function dbs(env){
 }
 async function userFrom(request,env){
   const {users}=dbs(env);if(!users)return null;
-  const raw=request.headers.get("Cookie")||"",m=raw.match(/(?:^|; )gutheb_session=([^;]+)/);if(!m)return null;
-  const tokenHash=await sha(m[1]);return await users.prepare("SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(tokenHash,new Date().toISOString()).first();
+  const raw=request.headers.get("Cookie")||"",m=raw.match(/(?:^|;)\\s*gutheb_session=([^;]+)/);if(!m)return null;
+  let sessionToken="";try{sessionToken=decodeURIComponent(m[1]);}catch{sessionToken=m[1];}const tokenHash=await sha(sessionToken);return await users.prepare("SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(tokenHash,new Date().toISOString()).first();
 }
 async function read(request){try{return await request.json()}catch{return {}}}
 async function ensureAuthSchema(db){
@@ -124,7 +124,7 @@ export async function onRequestPost({request,env}){
     return json({ok:true,available:true});
   }
   if(action==="logout"){
-    const raw=request.headers.get("Cookie")||"",m=raw.match(/(?:^|; )gutheb_session=([^;]+)/);if(m)await users.prepare("DELETE FROM sessions WHERE token_hash=?").bind(await sha(m[1])).run();
+    const raw=request.headers.get("Cookie")||"",m=raw.match(/(?:^|;)\\s*gutheb_session=([^;]+)/);if(m)await users.prepare("DELETE FROM sessions WHERE token_hash=?").bind(await sha(decodeURIComponent(m[1])||m[1])).run();
     return new Response(JSON.stringify({ok:true}),{status:200,headers:{"Content-Type":"application/json","Cache-Control":"no-store","Set-Cookie":clearCookie("gutheb_session")}});
   }
   return json({error:"Unknown action."},400);
