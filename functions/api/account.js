@@ -144,7 +144,7 @@ export async function onRequestPost({request,env}){
   }
   if(action==="logout"){
     const sessionToken=sessionTokenFrom(request);if(sessionToken)await users.prepare("DELETE FROM sessions WHERE token_hash=?").bind(await sha(sessionToken)).run();
-    return new Response(JSON.stringify({ok:true}),{status:200,headers:{"Content-Type":"application/json","Cache-Control":"no-store","Set-Cookie":clearCookie("gutheb_session")}});
+    return new Response(JSON.stringify({ok:true}),{status:200,headers:{"Content-Type":"application/json","Cache-Control":"no-store","Set-Cookie":clearCookie("gutheb_session",request)}});
   }
   return json({error:"Unknown action."},400);
 }
