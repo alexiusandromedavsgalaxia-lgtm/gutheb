@@ -19,8 +19,8 @@ function sessionTokenFrom(request){
 async function currentUser(request,env){
   const users=env.USERS_DB;
   if(!users)return null;
-  const raw=request.headers.get("Cookie")||"",m=raw.match(/(?:^|; )gutheb_session=([^;]+)/);
-  if(!m)return null;
+  const sessionToken=sessionTokenFrom(request);
+  if(!sessionToken)return null;
   const tokenHash=[...new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(sessionToken)))].map(x=>x.toString(16).padStart(2,"0")).join("");
   return users.prepare("SELECT u.id FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(tokenHash,new Date().toISOString()).first();
 }
