@@ -3,8 +3,26 @@ const enc=new TextEncoder();
 const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("");
 async function sha(s){return hex(await crypto.subtle.digest("SHA-256",enc.encode(s)))}
 async function passwordHash(password,salt){return sha(salt+":"+password)}
-function cookie(name,value,maxAge){return name+"="+encodeURIComponent(value)+"; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age="+maxAge+"; Priority=High"}
-function clearCookie(name){return name+"=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0"}
+function cookie(name,value,maxAge,request){
+  const secure=new URL(request.url).protocol==="https:"?" Secure":"";
+  return name+"="+encodeURIComponent(value)+"; Path=/; HttpOnly; SameSite=Lax; Max-Age="+maxAge+"; Priority=High"+secure;
+}
+function clearCookie(name,request){
+  const secure=new URL(request.url).protocol==="https:"?" Secure":"";
+  return name+"=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"+secure;
+}
+function sessionTokenFrom(request){
+  const raw=request.headers.get("Cookie")||"";
+  for(const part of raw.split(";")){
+    const i=part.indexOf("=");
+    if(i<0)continue;
+    const name=part.slice(0,i).trim();
+    if(name!=="gutheb_session")continue;
+    const value=part.slice(i+1).trim();
+    try{return decodeURIComponent(value)}catch{return value}
+  }
+  return "";
+}
 function dbs(env){
   return {
     users:env.USERS_DB||env.users||env.USERS||env.GUTHEB_DB,
@@ -15,8 +33,9 @@ function dbs(env){
 }
 async function userFrom(request,env){
   const {users}=dbs(env);if(!users)return null;
-  const raw=request.headers.get("Cookie")||"",m=raw.match(/(?:^|;)\\s*gutheb_session=([^;]+)/);if(!m)return null;
-  let sessionToken="";try{sessionToken=decodeURIComponent(m[1]);}catch{sessionToken=m[1];}const tokenHash=await sha(sessionToken);return await users.prepare("SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(tokenHash,new Date().toISOString()).first();
+  const sessionToken=sessionTokenFrom(request);if(!sessionToken)return null;
+  const tokenHash=await sha(sessionToken);
+  return await users.prepare("SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(tokenHash,new Date().toISOString()).first();
 }
 async function read(request){try{return await request.json()}catch{return {}}}
 async function ensureAuthSchema(db){
@@ -59,9 +78,9 @@ export async function onRequestPost({request,env}){
     await users.prepare("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)").bind(tokenHash,row.id,expires).run();
     const p=await users.prepare("SELECT * FROM profiles WHERE user_id=?").bind(row.id).first();
     const owned=await repos.prepare("SELECT * FROM repos WHERE owner_id=? ORDER BY updated_at DESC").bind(row.id).all();
-    return new Response(JSON.stringify({user:{id:row.id,name:row.username,email:row.email},profile:p,repos:owned.results||[],storage:{users:"users",repos:"repos",archive:!!archive,zip:!!zip}}),{status:200,headers:{"Content-Type":"application/json","Cache-Control":"no-store","Set-Cookie":cookie("gutheb_session",token,60*60*24*30)}});
+    return new Response(JSON.stringify({user:{id:row.id,name:row.username,email:row.email},profile:p,repos:owned.results||[],storage:{users:"users",repos:"repos",archive:!!archive,zip:!!zip}}),{status:200,headers:{"Content-Type":"application/json","Cache-Control":"no-store","Set-Cookie":cookie("gutheb_session",token,60*60*24*30,request)}});
   }
-  const user=await userFrom(request,env);if(!user){if(action==="logout")return new Response(JSON.stringify({ok:true}),{status:200,headers:{"Content-Type":"application/json","Cache-Control":"no-store","Set-Cookie":clearCookie("gutheb_session")}});return json({error:"Not authenticated."},401);}
+  const user=await userFrom(request,env);if(!user){if(action==="logout")return new Response(JSON.stringify({ok:true}),{status:200,headers:{"Content-Type":"application/json","Cache-Control":"no-store","Set-Cookie":clearCookie("gutheb_session",request)}});return json({error:"Not authenticated."},401);}
   if(action==="me"){
     const p=await users.prepare("SELECT * FROM profiles WHERE user_id=?").bind(user.id).first();
     const rs=await repos.prepare("SELECT * FROM repos WHERE owner_id=? ORDER BY updated_at DESC").bind(user.id).all();
@@ -124,7 +143,7 @@ export async function onRequestPost({request,env}){
     return json({ok:true,available:true});
   }
   if(action==="logout"){
-    const raw=request.headers.get("Cookie")||"",m=raw.match(/(?:^|;)\\s*gutheb_session=([^;]+)/);if(m)await users.prepare("DELETE FROM sessions WHERE token_hash=?").bind(await sha(decodeURIComponent(m[1])||m[1])).run();
+    const sessionToken=sessionTokenFrom(request);if(sessionToken)await users.prepare("DELETE FROM sessions WHERE token_hash=?").bind(await sha(sessionToken)).run();
     return new Response(JSON.stringify({ok:true}),{status:200,headers:{"Content-Type":"application/json","Cache-Control":"no-store","Set-Cookie":clearCookie("gutheb_session")}});
   }
   return json({error:"Unknown action."},400);
