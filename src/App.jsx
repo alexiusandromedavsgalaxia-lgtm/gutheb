@@ -39,7 +39,38 @@ function App(){
     addEventListener("hashchange",onRoute); addEventListener("popstate",onRoute); return()=>{removeEventListener("hashchange",onRoute);removeEventListener("popstate",onRoute)};
   },[]);
   useEffect(()=>{
-    fetch("/api/account",{credentials:"include"}).then(async r=>{if(!r.ok)throw new Error();const d=await r.json();setUser(d.user);setProfile({...d.profile,username:d.user.name});localStorage.setItem("gutheb-user",JSON.stringify(d.user));localStorage.setItem("gutheb-profile",JSON.stringify(d.profile||{}));return fetch("/api/account",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"me"})})}).then(r=>r.ok?r.json():null).then(d=>{if(d?.repos){setRepos(d.repos);localStorage.setItem("gutheb-repos-v2",JSON.stringify(d.repos));const m=location.pathname.match(/^\/([^/]+)\/([^/]+)\.gut\/?$/);if(m){const r=d.repos.find(x=>x.name===decodeURIComponent(m[2])&&(x.owner||d.user?.name)===decodeURIComponent(m[1]));if(r){setSelectedRepo({...r,currentBranch:r.currentBranch||"main"});setRepoTab("code");setTree(Object.keys(r.files||{}).map(path=>({path,type:"blob"})));}}}}).catch(()=>{});
+    let cancelled=false;
+    const restoreSession=async()=>{
+      for(let attempt=0;attempt<3;attempt++){
+        try{
+          const r=await fetch("/api/account",{method:"GET",credentials:"include",cache:"no-store"});
+          if(r.ok){
+            const d=await r.json();
+            if(cancelled)return;
+            setUser(d.user);
+            setProfile({...d.profile,username:d.user.name});
+            localStorage.setItem("gutheb-user",JSON.stringify(d.user));
+            localStorage.setItem("gutheb-profile",JSON.stringify(d.profile||{}));
+            const me=await fetch("/api/account",{method:"POST",credentials:"include",cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"me"})});
+            if(me.ok){
+              const md=await me.json();
+              if(cancelled)return;
+              setRepos(md.repos||[]);
+              localStorage.setItem("gutheb-repos-v2",JSON.stringify(md.repos||[]));
+              const m=location.pathname.match(/^\/([^/]+)\/([^/]+)\.gut\/?$/);
+              if(m){
+                const found=(md.repos||[]).find(x=>x.name===decodeURIComponent(m[2])&&(x.owner||md.user?.name)===decodeURIComponent(m[1]));
+                if(found){setSelectedRepo({...found,currentBranch:found.currentBranch||"main"});setRepoTab("code");setTree(Object.keys(found.files||{}).map(path=>({path,type:"blob"})));}
+              }
+            }
+            return;
+          }
+        }catch{}
+        await new Promise(resolve=>setTimeout(resolve,250*(attempt+1)));
+      }
+    };
+    restoreSession();
+    return()=>{cancelled=true};
   },[]);
 
   function go(p){ if(String(p).startsWith("codespace/")){history.pushState({}, "", "/"+p);setPage(p);setNotice("");return;} location.hash="/"+p; setPage(p); setNotice(""); }
@@ -79,6 +110,7 @@ function App(){
   }
   async function createRepo(e){
     e.preventDefault();
+    if(!user)return flash("Not authenticated. Please sign in again.");
     if(!newRepo.name.trim()) return flash("Repository name is required");
     const r={owner:user.name,name:newRepo.name.trim(),visibility:newRepo.visibility,language:"",stars:0,forks:0,updated:"just now",description:newRepo.description,license:"MIT",files:{
       "README.md":"# "+newRepo.name.trim()+"\n\n"+(newRepo.description||"")+"\n",
