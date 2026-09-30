@@ -5,12 +5,23 @@ const safePath=p=>{
   for(const part of parts){if(part==="."||part==="")continue;if(part===".."||part.includes("\\0"))return "";clean.push(part)}
   return clean.join("/");
 };
+function sessionTokenFrom(request){
+  const raw=request.headers.get("Cookie")||"";
+  for(const part of raw.split(";")){
+    const i=part.indexOf("=");
+    if(i<0)continue;
+    if(part.slice(0,i).trim()!=="gutheb_session")continue;
+    const value=part.slice(i+1).trim();
+    try{return decodeURIComponent(value)}catch{return value}
+  }
+  return "";
+}
 async function currentUser(request,env){
   const users=env.USERS_DB;
   if(!users)return null;
   const raw=request.headers.get("Cookie")||"",m=raw.match(/(?:^|; )gutheb_session=([^;]+)/);
   if(!m)return null;
-  const tokenHash=[...new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(m[1])))].map(x=>x.toString(16).padStart(2,"0")).join("");
+  const tokenHash=[...new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(sessionToken)))].map(x=>x.toString(16).padStart(2,"0")).join("");
   return users.prepare("SELECT u.id FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(tokenHash,new Date().toISOString()).first();
 }
 
