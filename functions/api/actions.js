@@ -29,9 +29,9 @@ function sessionTokenFrom(request){
 async function sessionUser(request,env){
   const users=env.USERS_DB||env.users||env.USERS||env.GUTHEB_DB;
   if(!users)return null;
-  const raw=request.headers.get("Cookie")||"",m=raw.match(/(?:^|;)\\s*gutheb_session=([^;]+)/);
-  if(!m)return null;
-  let sessionToken="";try{sessionToken=decodeURIComponent(sessionToken);}catch{sessionToken=sessionToken;}const hash=await hashToken(sessionToken);
+  const sessionToken=sessionTokenFrom(request);
+  if(!sessionToken)return null;
+  const hash=await hashToken(sessionToken);
   return users.prepare("SELECT u.id,u.username FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(hash,new Date().toISOString()).first();
 }
 async function ensureRunSchema(db){
