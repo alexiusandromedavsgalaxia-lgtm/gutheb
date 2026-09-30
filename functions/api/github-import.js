@@ -4,7 +4,17 @@ async function sha(s){return [...new Uint8Array(await crypto.subtle.digest("SHA-
 async function userFrom(request,env){
   const db=env.USERS_DB||env.users||env.USERS||env.GUTHEB_DB;
   if(!db)return null;
-  const raw=request.headers.get("Cookie")||"",m=raw.match(/(?:^|;)\\s*gutheb_session=([^;]+)/);if(!m)return null;
+  const raw=request.headers.get("Cookie")||"";
+  let sessionToken="";
+  for(const part of raw.split(";")){
+    const i=part.indexOf("=");
+    if(i<0)continue;
+    if(part.slice(0,i).trim()!=="gutheb_session")continue;
+    const value=part.slice(i+1).trim();
+    try{sessionToken=decodeURIComponent(value)}catch{sessionToken=value}
+    break;
+  }
+  if(!sessionToken)return null;
   return await db.prepare("SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?").bind(await sha(sessionToken),new Date().toISOString()).first();
 }
 function parseUrl(value){
