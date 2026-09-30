@@ -22,7 +22,25 @@ async function ensurePagesSchema(db){
   ]);
 }
 async function sha256(value){const b=new TextEncoder().encode(value);const h=await crypto.subtle.digest("SHA-256",b);return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,"0")).join("");}
-async function userFrom(request,env){const {users}=dbs(env);if(!users)return null;const raw=request.headers.get("Cookie")||"",m=raw.match(/(?:^|;)\\s*gutheb_session=([^;]+)/);if(!m)return null;const tokenHash=await sha256(decodeURIComponent(sessionToken)||sessionToken);const s=await users.prepare("SELECT user_id,expires_at FROM sessions WHERE token_hash=?").bind(tokenHash).first();if(!s||new Date(s.expires_at)<=new Date())return null;const u=await users.prepare("SELECT id,username,email FROM users WHERE id=?").bind(s.user_id).first();return u||null;}
+async function userFrom(request,env){
+  const {users}=dbs(env);
+  if(!users)return null;
+  const raw=request.headers.get("Cookie")||"";
+  let sessionToken="";
+  for(const part of raw.split(";")){
+    const i=part.indexOf("=");
+    if(i<0)continue;
+    if(part.slice(0,i).trim()!=="gutheb_session")continue;
+    const value=part.slice(i+1).trim();
+    try{sessionToken=decodeURIComponent(value)}catch{sessionToken=value}
+    break;
+  }
+  if(!sessionToken)return null;
+  const tokenHash=await sha256(sessionToken);
+  const s=await users.prepare("SELECT user_id,expires_at FROM sessions WHERE token_hash=?").bind(tokenHash).first();
+  if(!s||new Date(s.expires_at)<=new Date())return null;
+  return await users.prepare("SELECT id,username,email FROM users WHERE id=?").bind(s.user_id).first();
+}
 const mime=p=>({"html":"text/html","htm":"text/html","css":"text/css","js":"text/javascript","mjs":"text/javascript","json":"application/json","svg":"image/svg+xml","png":"image/png","jpg":"image/jpeg","jpeg":"image/jpeg","gif":"image/gif","webp":"image/webp","ico":"image/x-icon","txt":"text/plain","xml":"application/xml","wasm":"application/wasm","webmanifest":"application/manifest+json"}[String(p).split(".").pop().toLowerCase()]||"application/octet-stream");
 const safeName=s=>String(s||"").toLowerCase().replace(/[^a-z0-9-]/g,"-").replace(/-+/g,"-").replace(/^-|-$/g,"").slice(0,50)||"gutheb-site";
 async function cf(env,path,init={}){if(!env.CLOUDFLARE_API_TOKEN||!env.CLOUDFLARE_ACCOUNT_ID)throw new Error("Cloudflare Pages is not connected. Configure CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the Pages project secrets.");const r=await fetch("https://api.cloudflare.com/client/v4/accounts/"+encodeURIComponent(env.CLOUDFLARE_ACCOUNT_ID)+path,{...init,headers:{"Authorization":"Bearer "+env.CLOUDFLARE_API_TOKEN,"Content-Type":"application/json",...(init.headers||{})}});const d=await r.json().catch(()=>({}));if(!r.ok||d.success===false)throw new Error(d?.errors?.[0]?.message||"Cloudflare Pages API request failed");return d;}
